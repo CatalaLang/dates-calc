@@ -20,10 +20,6 @@ type date
 type period
 (** A period can be any number and combination of days, months, years. *)
 
-type day
-type month
-type year
-
 exception InvalidDate
 exception AmbiguousComputation
 
@@ -47,6 +43,9 @@ val sub_dates : date -> date -> period
 
 val compare_dates : date -> date -> int
 val date_to_ymd : date -> int * int * int
+
+val format_date : Format.formatter -> date -> unit
+(** Respects ISO8601 format. *)
 
 (** {2 Functions on periods}*)
 
