@@ -1,3 +1,2 @@
 (library
- (name dates_calc)
- (modules_without_implementation dates))
+ (name dates_calc))
