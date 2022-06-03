@@ -32,6 +32,33 @@ type date_rounding =
       (** When choosing [AbortOnRound], functions may raise
           [AmbiguousComputation]. *)
 
+(** {2 Functions on periods}*)
+
+let make_period ~(years : int) ~(months : int) ~(days : int) : period =
+  { years; months; days }
+
+let add_periods (d1 : period) (d2 : period) : period =
+  {
+    years = d1.years + d2.years;
+    months = d1.months + d2.months;
+    days = d1.days + d2.days;
+  }
+
+let sub_periods (d1 : period) (d2 : period) : period =
+  {
+    years = d1.years - d2.years;
+    months = d1.months - d2.months;
+    days = d1.days - d2.days;
+  }
+
+let mul_period (d1 : period) (m : int) : period =
+  { years = d1.years * m; months = d1.months * m; days = d1.days * m }
+
+(** @raise [AmbiguousComputation]
+      when the period is anything else than a number of days. *)
+let period_to_days (p : period) : int =
+  if p.years <> 0 || p.months <> 0 then raise AmbiguousComputation else p.days
+
 (** {2 Functions on dates}*)
 
 let is_leap_year (year : int) : bool =
@@ -177,44 +204,50 @@ let add_dates ?(round : date_rounding = AbortOnRound) (d : date) (p : period) :
   let d = add_dates_days d p.days in
   d
 
-(** The returned [period] is always expressed as a number of days. *)
-let sub_dates (d1 : date) (d2 : date) : period = failwith "Unimplemented!"
-
 let compare_dates (d1 : date) (d2 : date) : int =
   if Int.compare d1.year d2.year = 0 then
     if Int.compare d1.month d2.month = 0 then Int.compare d1.day d2.day
     else Int.compare d1.month d2.month
   else Int.compare d1.year d2.year
 
+let neg_period (p : period) : period =
+  { years = -p.years; months = -p.months; days = -p.days }
+
+(** The returned [period] is always expressed as a number of days. *)
+let rec sub_dates (d1 : date) (d2 : date) : period =
+  if d1.year = d2.year && d1.month = d2.month then
+    (* Easy case: the two dates are in the same month. *)
+    make_period ~years:0 ~months:0 ~days:(d1.day - d2.day)
+  else
+    (* Otherwise we'll add a month forward if d2 is after d1.*)
+    let cmp = compare_dates d1 d2 in
+    if cmp < 0 then
+      (* The case were d1 is after d2 is symmetrical so we handle it via a
+         recursive call changing the order of the arguments. *)
+      neg_period (sub_dates d2 d1)
+    else
+      (* we know cmp != 0 so cmp > 0*)
+      (* We warp d1 to the first day of the next month. *)
+      let new_d1_year, new_d1_month =
+        add_months_to_first_of_month_date ~year:d1.year ~month:d1.month
+          ~months:1
+      in
+      let new_d1 = { year = new_d1_year; month = new_d1_month; day = 1 } in
+      (* Next we divide the result between the number of days we've added to go
+         to the end of the month, and the remaining handled by a recursive
+         call. *)
+      add_periods
+        (make_period ~years:0 ~months:0
+           ~days:
+             (* The number of days is the difference between the last day of the
+                month and the current day of d1, plus one day because we go to
+                the next month. *)
+             (days_in_month ~month:d1.month ~is_leap_year:(is_leap_year d1.year)
+             - d1.day + 1))
+        (sub_dates new_d1 d2)
+
 let date_to_ymd (d : date) : int * int * int = d.year, d.month, d.day
 
 (** Respects ISO8601 format. *)
 let format_date (fmt : Format.formatter) (d : date) : unit =
   Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day
-
-(** {2 Functions on periods}*)
-
-let make_period ~(years : int) ~(months : int) ~(days : int) : period =
-  { years; months; days }
-
-let add_periods (d1 : period) (d2 : period) : period =
-  {
-    years = d1.years + d2.years;
-    months = d1.months + d2.months;
-    days = d1.days + d2.days;
-  }
-
-let sub_periods (d1 : period) (d2 : period) : period =
-  {
-    years = d1.years - d2.years;
-    months = d1.months - d2.months;
-    days = d1.days - d2.days;
-  }
-
-let mul_period (d1 : period) (m : int) : period =
-  { years = d1.years * m; months = d1.months * m; days = d1.days * m }
-
-(** @raise [AmbiguousComputation]
-      when the period is anything else than a number of days. *)
-let period_to_days (p : period) : int =
-  if p.years <> 0 || p.months <> 0 then raise AmbiguousComputation else p.days
