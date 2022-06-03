@@ -1,0 +1,2 @@
+build:
+	dune build lib/
