@@ -195,12 +195,26 @@ let format_date (fmt : Format.formatter) (d : date) : unit =
 (** {2 Functions on periods}*)
 
 let make_period ~(years : int) ~(months : int) ~(days : int) : period =
-  failwith "Unimplemented!"
+  { years; months; days }
 
-let add_periods (d1 : period) (d2 : period) : period = failwith "Unimplemented!"
-let sub_periods (d1 : period) (d2 : period) : period = failwith "Unimplemented!"
-let mul_period (d1 : period) (m : int) : period = failwith "Unimplemented!"
+let add_periods (d1 : period) (d2 : period) : period =
+  {
+    years = d1.years + d2.years;
+    months = d1.months + d2.months;
+    days = d1.days + d2.days;
+  }
+
+let sub_periods (d1 : period) (d2 : period) : period =
+  {
+    years = d1.years - d2.years;
+    months = d1.months - d2.months;
+    days = d1.days - d2.days;
+  }
+
+let mul_period (d1 : period) (m : int) : period =
+  { years = d1.years * m; months = d1.months * m; days = d1.days * m }
 
 (** @raise [AmbiguousComputation]
       when the period is anything else than a number of days. *)
-let period_to_days (p : period) : int = failwith "Unimplemented!"
+let period_to_days (p : period) : int =
+  if p.years <> 0 || p.months <> 0 then raise AmbiguousComputation else p.days
