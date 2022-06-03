@@ -45,20 +45,16 @@ let days_in_month ~(month : int) ~(is_leap_year : bool) : int =
   | 2 -> if is_leap_year then 29 else 28
   | _ -> raise InvalidDate
 
-let is_valid_date ~(year : int) ~(month : int) ~(day : int) : bool =
-  try day >= 1 && day <= days_in_month ~month ~is_leap_year:(is_leap_year year)
+let is_valid_date (d : date) : bool =
+  try
+    d.day >= 1
+    && d.day <= days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year)
   with InvalidDate -> false
 
 (** @raise [InvalidDate]*)
 let make_date ~(year : int) ~(month : int) ~(day : int) : date =
-  if is_valid_date ~year ~month ~day then { year; month; day }
-  else raise InvalidDate
-
-let add_dates_years ~(round : date_rounding) (d : date) (years : int) =
-  failwith "Unimplemented!"
-
-let add_dates_month ~(round : date_rounding) (d : date) (months : int) =
-  failwith "Unimplemented!"
+  let d = { year; month; day } in
+  if is_valid_date d then d else raise InvalidDate
 
 (** Returns new [year, month]. Precondition: [1 <= month <= 12] *)
 let rec add_months_to_first_of_month_date
@@ -75,39 +71,110 @@ let rec add_months_to_first_of_month_date
     add_months_to_first_of_month_date ~year:(year - 1) ~month
       ~months:(months + 12)
 
+(* If the date is valid, does nothing. We expect the month number to be always
+   valid when calling this. If the date is invalid due to the day number, then
+   this function rounds down: if the day number is >= days_in_month, to the last
+   day of the current month. *)
+let prev_valid_date (d : date) : date =
+  assert (1 <= d.month && d.month <= 12);
+  assert (1 <= d.day && d.day <= 31);
+  if is_valid_date d then d
+  else
+    {
+      d with
+      day = days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year);
+    }
+
+(* If the date is valid, does nothing. We expect the month number to be always
+   valid when calling this. If the date is invalid due to the day number, then
+   this function rounds down: if the day number is >= days_in_month, to the
+   first day of the next month. *)
+let next_valid_date (d : date) : date =
+  assert (1 <= d.month && d.month <= 12);
+  assert (1 <= d.day && d.day <= 31);
+  if is_valid_date d then d
+  else
+    let new_year, new_month =
+      add_months_to_first_of_month_date ~year:d.year ~month:d.month ~months:1
+    in
+    { year = new_year; month = new_month; day = 1 }
+
+let round_date ~(round : date_rounding) (new_date : date) =
+  if is_valid_date new_date then new_date
+  else
+    match round with
+    | AbortOnRound -> raise AmbiguousComputation
+    | RoundDown -> prev_valid_date new_date
+    | RoundUp -> next_valid_date new_date
+
+let add_dates_years ~(round : date_rounding) (d : date) (years : int) : date =
+  let new_date = { d with year = d.year + years } in
+  round_date ~round new_date
+
+let add_dates_month ~(round : date_rounding) (d : date) (months : int) : date =
+  let new_year, new_month =
+    add_months_to_first_of_month_date ~year:d.year ~month:d.month ~months
+  in
+  let new_date = { d with year = new_year; month = new_month } in
+  round_date ~round new_date
+
 let rec add_dates_days (d : date) (days : int) =
+  (* Hello, dear reader! Buckle up because it will be a hard ride. The first
+     thing to do here is to retrieve how many days there are in the current
+     month of [d]. *)
   let days_in_d_month =
     days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year)
   in
+  (* Now, we case analyze of the situation. To do that, we add the current days
+     of the month with [days], and see what happens. Beware, [days] is algebraic
+     and can be negative! *)
   let new_day = d.day + days in
-  if 1 <= new_day && new_day <= days_in_d_month then { d with day = new_day }
+  if 1 <= new_day && new_day <= days_in_d_month then
+    (* The first case is the easy one: when you add [days], the new day keeps
+       being a valid day in the current month. All is good, we simply warp to
+       that new date without any further changes. *)
+    { d with day = new_day }
   else if new_day >= days_in_d_month then
+    (* Now, we deal with the case where there is an overflow : you have added
+       too many days and the current month cannot handle them any more. The
+       strategy here is to fill the current month, and let the next month handle
+       the situation via a recursive call. *)
     let new_year, new_month =
       add_months_to_first_of_month_date ~year:d.year ~month:d.month ~months:1
     in
     add_dates_days
+      (* We warp to the first day of the next month! *)
       { year = new_year; month = new_month; day = 1 }
-      (days - (days_in_d_month - d.day)
-     - 1 (* we already moved one day by incrementing the month *))
+      (* Now we compute how many days we still have left to add. Because we have
+         warped to the next month, we already have added the rest of the days in
+         the current month: [days_in_d_month - d.day]. But then we switch
+         months, and that corresponds to adding another day. *)
+      (days - (days_in_d_month - d.day) - 1)
   else
+    (* The last case is symmetrical, we substracted too many days and the
+       current month can't handle it. So we warp to the previous month and let a
+       recursive call handle the situation from there. *)
     let new_year, new_month =
       add_months_to_first_of_month_date ~year:d.year ~month:d.month ~months:(-1)
     in
     add_dates_days
+      (* We warp to the last day of the previous month. *)
       {
         year = new_year;
         month = new_month;
         day =
           days_in_month ~month:new_month ~is_leap_year:(is_leap_year new_year);
       }
+      (* What remains to be substracted (as [days] is negative) has to be
+         diminished by the number of days of the date in the current month. *)
       (days + d.day)
 
 (** @raise [AmbiguousComputation] *)
 let add_dates ?(round : date_rounding = AbortOnRound) (d : date) (p : period) :
     date =
   let d = add_dates_years ~round d p.years in
-  let d = add_dates_month ~round d p.years in
-  let d = add_dates_days d p.years in
+  let d = add_dates_month ~round d p.months in
+  let d = add_dates_days d p.days in
   d
 
 (** The returned [period] is always expressed as a number of days. *)
