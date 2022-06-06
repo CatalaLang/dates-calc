@@ -22,12 +22,15 @@ add_dates (Feb 28, 2012) (4 months) == June 28, 2012
 add_dates (March 15, 2012) (1 month) == Apr 15, 2012
 add_dates (Nov 15, 2012) (3 months) == Feb 15, 2013
 
+add_dates (March 31, 2012) (2 months) == May 31, 2012
+add_dates (Jan 31, 2012) (2 months) == March 31, 2012
+add_dates (Jan 31, 2013) (2 months) == March 31, 2013
+add_dates (Oct 31, 2012) (5 months) == March 31, 2013
+
 add_dates (March 31, 2012) (1 month) ==
   (* RoundUp      *) May 1, 2012
   (* RoundDown    *) Apr 30, 2012
   (* AbortOnRound *) AmbiguousComputation exception
-
-add_dates (March 31, 2012) (2 months) == May 31, 2012
 
 add_dates (March 31, 2012) (3 months) ==
   (* RoundUp      *) July 1, 2012
@@ -39,8 +42,6 @@ add_dates (Jan 31, 2012) (1 month) ==
   (* RoundDown    *) Feb 29, 2012
   (* AbortOnRound *) AmbiguousComputation exception
 
-add_dates (Jan 31, 2012) (2 months) == March 31, 2012
-
 add_dates (Jan 31, 2012) (3 months) ==
   (* RoundUp      *) May 1, 2012
   (* RoundDown    *) April 30, 2012
@@ -51,8 +52,6 @@ add_dates (Jan 31, 2013) (1 month) ==
   (* RoundDown    *) Feb 28, 2013
   (* AbortOnRound *) AmbiguousComputation exception
 
-add_dates (Jan 31, 2013) (2 months) == March 31, 2013
-
 add_dates (Jan 31, 2013) (3 months) ==
   (* RoundUp      *) May 1, 2013
   (* RoundDown    *) April 30, 2013
@@ -62,8 +61,6 @@ add_dates (Oct 31, 2012) (4 months) ==
   (* RoundUp      *) March 1, 2013
   (* RoundDown    *) Feb 28, 2013
   (* AbortOnRound *) AmbiguousComputation exception
-
-add_dates (Oct 31, 2012) (5 months) == March 31, 2013
 
 add_dates (Oct 31, 2012) (6 months) ==
   (* RoundUp      *) May 1, 2013
