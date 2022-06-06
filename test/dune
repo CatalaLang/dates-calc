@@ -1,2 +1,3 @@
-(test
- (name dates_calc))
+(tests
+ (names prop unit)
+ (libraries dates_calc alcotest qcheck str))
