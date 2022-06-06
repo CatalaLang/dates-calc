@@ -16,6 +16,7 @@
 
 [@@@warning "-27"]
 
+
 type date = { year : int; month : int; day : int }
 (** A valid date in the standard Gregorian calendar. *)
 
@@ -210,6 +211,10 @@ let compare_dates (d1 : date) (d2 : date) : int =
     else Int.compare d1.month d2.month
   else Int.compare d1.year d2.year
 
+(** Respects ISO8601 format. *)
+let format_date (fmt : Format.formatter) (d : date) : unit =
+  Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day
+
 let neg_period (p : period) : period =
   { years = -p.years; months = -p.months; days = -p.days }
 
@@ -228,11 +233,11 @@ let rec sub_dates (d1 : date) (d2 : date) : period =
     else
       (* we know cmp != 0 so cmp > 0*)
       (* We warp d1 to the first day of the next month. *)
-      let new_d1_year, new_d1_month =
-        add_months_to_first_of_month_date ~year:d1.year ~month:d1.month
+      let new_d2_year, new_d2_month =
+        add_months_to_first_of_month_date ~year:d2.year ~month:d2.month
           ~months:1
       in
-      let new_d1 = { year = new_d1_year; month = new_d1_month; day = 1 } in
+      let new_d2 = { year = new_d2_year; month = new_d2_month; day = 1 } in
       (* Next we divide the result between the number of days we've added to go
          to the end of the month, and the remaining handled by a recursive
          call. *)
@@ -242,12 +247,8 @@ let rec sub_dates (d1 : date) (d2 : date) : period =
              (* The number of days is the difference between the last day of the
                 month and the current day of d1, plus one day because we go to
                 the next month. *)
-             (days_in_month ~month:d1.month ~is_leap_year:(is_leap_year d1.year)
-             - d1.day + 1))
-        (sub_dates new_d1 d2)
+             (days_in_month ~month:d2.month ~is_leap_year:(is_leap_year d2.year)
+             - d2.day + 1))
+        (sub_dates d1 new_d2)
 
 let date_to_ymd (d : date) : int * int * int = d.year, d.month, d.day
-
-(** Respects ISO8601 format. *)
-let format_date (fmt : Format.formatter) (d : date) : unit =
-  Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day

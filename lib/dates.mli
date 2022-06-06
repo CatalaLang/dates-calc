@@ -50,6 +50,7 @@ val format_date : Format.formatter -> date -> unit
 (** {2 Functions on periods}*)
 
 val make_period : years:int -> months:int -> days:int -> period
+val neg_period : period -> period
 val add_periods : period -> period -> period
 val sub_periods : period -> period -> period
 val mul_period : period -> int -> period
