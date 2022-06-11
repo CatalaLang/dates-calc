@@ -118,3 +118,41 @@ let rec add_dates_days (d:date{is_valid_date d}) (days:int)
       ({ year = new_year; month = new_month; day = new_day})
       (days + d.day)
   )
+
+let compare_dates (d1 d2:date) : int =
+  if d1.year - d2.year = 0 then
+    if d1.month - d2.month = 0 then d1.day - d2.day
+    else d1.month - d2.month
+  else d1.year - d2.year
+
+let neg_period (p:period) : period =
+  { years = -p.years; months = -p.months; days = -p.days }
+
+type period_days = p:period{p.years = 0 /\ p.months = 0}
+
+(* A termination measure used below, which decreases when d1 > d2 instead of d1 < d2 *)
+let dates_compare_sign (d1 d2:date)
+  = if d1.year = d2.year && d1.month = d2.month then 0
+    else if compare_dates d1 d2 < 0 then 2
+    else 1
+
+(** The returned period is always expressed as a number of days *)
+let rec sub_dates (d1:date{is_valid_date d1}) (d2:date{is_valid_date d2})
+  : Tot period_days
+  (decreases %[dates_compare_sign d1 d2; abs (d1.year - d2.year); 12 - d2.month]) =
+  if d1.year = d2.year && d1.month = d2.month then
+    make_period 0 0 (d1.day - d2.day)
+  else begin
+    let cmp = compare_dates d1 d2 in
+    if cmp < 0 then
+      neg_period (sub_dates d2 d1)
+    else begin
+      let new_d2_year, new_d2_month =
+        add_months_to_first_of_month_date d2.year d2.month 1
+      in
+      let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
+      add_periods
+        (make_period 0 0 (Some?.v (days_in_month d2.month (is_leap_year d2.year)) - d2.day + 1))
+        (sub_dates d1 new_d2)
+    end
+  end
