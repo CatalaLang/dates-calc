@@ -75,7 +75,7 @@ let rec add_months_to_first_of_month_date
            (ensures (fun (y, m) -> 1 <= m /\ m <= 12))
            (* The absolute value of the new_month always decreases, except
               maybe in the case where the next iteration will be terminal *)
-           (decreases %[in_same_year month months; abs (month + months)]) =
+           (decreases %[in_same_year month months; abs months]) =
   let new_month = month + months in
   if 1 <= new_month && new_month <= 12 then year, new_month
   else if new_month > 12 then (
@@ -201,7 +201,7 @@ let rec lemma_add_dates_assoc d x1 x2 =
 
 val lemma_add_neg_cancellative (d:date{is_valid_date d}) (x:int)
   : Lemma
-  (ensures compare_dates (add_dates_days (add_dates_days d x) (-x) ) d == 0)
+  (ensures add_dates_days (add_dates_days d x) (-x) == d)
   (decreases abs x)
 
 #push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
