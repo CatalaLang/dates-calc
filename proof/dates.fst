@@ -96,7 +96,7 @@ let in_same_month (d:date{is_valid_date d}) (days:int) : GTot nat =
   else 1
 
 let rec add_dates_days (d:date{is_valid_date d}) (days:int)
-  : Tot date
+  : Tot (d:date{is_valid_date d})
         (decreases %[in_same_month d days; abs (d.day + days)]) =
   let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
   let new_day = d.day + days in
@@ -156,3 +156,50 @@ let rec sub_dates (d1:date{is_valid_date d1}) (d2:date{is_valid_date d2})
         (sub_dates d1 new_d2)
     end
   end
+
+
+(*** Lemmas ***)
+
+/// compare_dates returns 0 iff the two dates are equal
+let lemma_compare_dates_refl (d1 d2:date) : Lemma
+  (compare_dates d1 d2 = 0 <==> d1 = d2)
+  = ()
+
+val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
+  : Lemma (add_dates_days (add_dates_days d x1) x2 ==
+           add_dates_days d (x1 + x2))
+
+let lemma_add_dates_assoc d x1 x2 = admit()
+
+val lemma_add_neg_cancellative (d:date{is_valid_date d}) (x:int)
+  : Lemma
+  (ensures compare_dates (add_dates_days (add_dates_days d x) (-x) ) d == 0)
+  (decreases abs x)
+
+#set-options "--z3rlimit 20"
+
+let rec lemma_add_neg_cancellative d x =
+  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+  let new_day = d.day + x in
+  if 1 <= new_day && new_day <= days_in_d_month then ()
+  else (
+    if new_day >= days_in_d_month then (
+      let new_year, new_month =
+        add_months_to_first_of_month_date d.year d.month 1
+      in
+      let x' = x - (days_in_d_month - d.day) - 1 in
+      let d' = ({year = new_year; month = new_month; day = 1}) in
+      lemma_add_neg_cancellative d' x';
+      lemma_add_dates_assoc (add_dates_days d x) (-x') (x'-x)
+
+    ) else (
+      let new_year, new_month =
+        add_months_to_first_of_month_date d.year d.month (-1)
+      in
+      let new_day = Some?.v (days_in_month new_month (is_leap_year new_year)) in
+      let d' = ({ year = new_year; month = new_month; day = new_day}) in
+      let x' = x + d.day in
+      lemma_add_neg_cancellative d' x';
+      lemma_add_dates_assoc (add_dates_days d x) (-x') (x'-x)
+    )
+  )
