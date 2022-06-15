@@ -165,18 +165,46 @@ let lemma_compare_dates_refl (d1 d2:date) : Lemma
   (compare_dates d1 d2 = 0 <==> d1 = d2)
   = ()
 
+/// (d + x1) + x2 == d + (x1 + x2)
 val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
-  : Lemma (add_dates_days (add_dates_days d x1) x2 ==
-           add_dates_days d (x1 + x2))
+  : Lemma (ensures
+    add_dates_days (add_dates_days d x1) x2 == add_dates_days d (x1 + x2))
+    (decreases abs x1)
 
-let lemma_add_dates_assoc d x1 x2 = admit()
+#push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
+
+let rec lemma_add_dates_assoc d x1 x2 =
+  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+  let new_day = d.day + x1 in
+  if 1 <= new_day && new_day <= days_in_d_month then
+    ()
+  else
+    if new_day >= days_in_d_month then (
+      let new_year, new_month =
+        add_months_to_first_of_month_date d.year d.month 1
+      in
+      let x1' = x1 - (days_in_d_month - d.day) - 1 in
+      let d' = ({year = new_year; month = new_month; day = 1}) in
+      lemma_add_dates_assoc d' x1' x2
+
+    ) else (
+      let new_year, new_month =
+        add_months_to_first_of_month_date d.year d.month (-1)
+      in
+      let new_day = Some?.v (days_in_month new_month (is_leap_year new_year)) in
+      let d' = ({ year = new_year; month = new_month; day = new_day}) in
+      let x1' = x1 + d.day in
+      lemma_add_dates_assoc d' x1' x2
+    )
+
+#pop-options
 
 val lemma_add_neg_cancellative (d:date{is_valid_date d}) (x:int)
   : Lemma
   (ensures compare_dates (add_dates_days (add_dates_days d x) (-x) ) d == 0)
   (decreases abs x)
 
-#set-options "--z3rlimit 20"
+#push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
 
 let rec lemma_add_neg_cancellative d x =
   let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
@@ -203,3 +231,5 @@ let rec lemma_add_neg_cancellative d x =
       lemma_add_dates_assoc (add_dates_days d x) (-x') (x'-x)
     )
   )
+
+#pop-options
