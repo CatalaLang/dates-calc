@@ -233,3 +233,74 @@ let rec lemma_add_neg_cancellative d x =
   )
 
 #pop-options
+
+val lemma_equal_dates_implies_zero_sub
+   (d1:date{is_valid_date d1})
+   (d2:date{is_valid_date d2})
+   : Lemma (requires compare_dates d1 d2 = 0)
+           (ensures (sub_dates d1 d2).days = 0)
+
+let lemma_equal_dates_implies_zero_sub d1 d2 = ()
+
+val lemma_greater_date_implies_positive_sub
+   (d1:date{is_valid_date d1})
+   (d2:date{is_valid_date d2})
+   : Lemma (requires compare_dates d1 d2 > 0)
+           (ensures (sub_dates d1 d2).days > 0)
+           (decreases
+             %[abs (d1.year - d2.year); 12 - d2.month])
+
+let rec lemma_greater_date_implies_positive_sub d1 d2 =
+  if d1.year = d2.year && d1.month = d2.month then ()
+  else
+    let new_d2_year, new_d2_month =
+      add_months_to_first_of_month_date d2.year d2.month 1
+    in
+    let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
+    assert (d1.year - d2.year > 0 \/ (d1.year - d2.year = 0 /\ d1.month - d2.month > 0));
+    if compare_dates d1 new_d2 = 0 then ()
+    else lemma_greater_date_implies_positive_sub d1 new_d2
+
+val lemma_smaller_date_implies_negative_sub
+   (d1:date{is_valid_date d1})
+   (d2:date{is_valid_date d2})
+   : Lemma (requires compare_dates d1 d2 < 0)
+           (ensures (sub_dates d1 d2).days < 0)
+
+let lemma_smaller_date_implies_negative_sub d1 d2 =
+  if d1.year = d2.year && d1.month = d2.month then ()
+  else lemma_greater_date_implies_positive_sub d2 d1
+
+/// forall d1 d2, compare_dates (add_dates d2 (sub_dates d1 d2)) d1 = 0.
+/// Since sub_dates always return a period_days, we state this using add_dates_days
+val lemma_add_sub_cancellative
+   (d1:date{is_valid_date d1})
+   (d2:date{is_valid_date d2})
+   : Lemma
+     (ensures add_dates_days d2 ((sub_dates d1 d2).days) == d1)
+     (decreases %[dates_compare_sign d1 d2; abs (d1.year - d2.year); 12 - d2.month])
+
+#push-options "--z3rlimit 20"
+
+let rec lemma_add_sub_cancellative d1 d2 =
+  if d1.year = d2.year && d1.month = d2.month then ()
+  else begin
+    let cmp = compare_dates d1 d2 in
+    if cmp >= 0 then (
+      lemma_greater_date_implies_positive_sub d1 d2;
+      let new_d2_year, new_d2_month =
+        add_months_to_first_of_month_date d2.year d2.month 1
+      in
+      let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
+      lemma_add_sub_cancellative d1 new_d2
+
+    ) else (
+      lemma_add_sub_cancellative d2 d1;
+      (**) assert (add_dates_days d1 ((sub_dates d2 d1).days) == d2);
+      lemma_add_neg_cancellative d1 ((sub_dates d2 d1).days);
+      (**) assert (d1 == add_dates_days d2 (- (sub_dates d2 d1).days));
+      (**) assert ((sub_dates d1 d2).days == - (sub_dates d2 d1).days)
+    )
+  end
+
+#pop-options
