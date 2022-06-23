@@ -1,0 +1,21 @@
+Properties proven (in F*):
+  * forall d x1 x2, add_dates_days (add_dates_days d x1) x2 == add_dates_days d (x1 + x2)
+  * forall d, forall x, compare_dates (add_dates_days (add_dates_days d x) -x ) d = 0
+  * forall d1 d2, compare_dates (add_dates d2 (sub_dates d1 d2)) d1 = 0
+  * forall d1 d2, sign (compare_dates d1 d2) <==> sign (sub_dates d1 d2)
+
+Properties we want:
+  * (Monotonicity of addition) forall d1 d2 p, d1 < d2 ==> add_dates d1 p <= add_dates d2 p
+      (We need a non-strict version on the right because of rounding, e.g., assuming RoundDown,
+       March 30 and March 31 + 1 month return the same date)
+  * (Monotonicity of rounding) forall d p. add_dates ~RoundDown d p <= add_dates ~RoundUp d p
+
+False properties:
+  * (Commutativity of days/months addition)
+      forall d1 d m. (d1 + d days) + m months = (d1 + m months) + d days
+    Counterexample: 31 Jan + 1 day + 1 month
+  * (Assoc of generic periods)
+      forall d p1 p2. (d + p1) + p2 == d + (p1 + p2)
+    Counterexample: Take p1 and p2 = 1 month, d = 31 Jan
+    Counterexample: Take p1 = 1 month, p2 = -1 month, d = 31 Jan
+
