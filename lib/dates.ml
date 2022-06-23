@@ -34,6 +34,8 @@ type date_rounding =
           [AmbiguousComputation]. *)
 
 (** {2 Functions on periods}*)
+let format_period (fmt : Format.formatter) (p : period) : unit =
+  Format.fprintf fmt "[%d years, %d months, %d days]" p.years p.months p.days
 
 let make_period ~(years : int) ~(months : int) ~(days : int) : period =
   { years; months; days }

@@ -55,6 +55,8 @@ val add_periods : period -> period -> period
 val sub_periods : period -> period -> period
 val mul_period : period -> int -> period
 
+val format_period : Format.formatter -> period -> unit
+
 val period_to_days : period -> int
 (** @raise [AmbiguousComputation]
       when the period is anything else than a number of days. *)
