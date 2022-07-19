@@ -19,3 +19,57 @@ False properties:
     Counterexample: Take p1 and p2 = 1 month, d = 31 Jan
     Counterexample: Take p1 = 1 month, p2 = -1 month, d = 31 Jan
 
+
+
+# Meeting 2022-07-19
+
+Denis, Raphaël, Aymeric
+
+## Having mono-duration-type periods ?
+
+We can't have mono-duration-type periods because otherwise we can't add periods
+together.
+
+## Adding months and years to a date
+
+When adding `a years + b months` do a date `d`, the current implementation of
+`add_period` first adds the years, then round to a valid date, then add the months.
+This is counter-intuitive, because adding 1 year should be strictly equivalent
+to adding 12 months. So the implementation should be tweaked to only round
+to a valid date after having added both the months and the years.
+
+Consequently, the internal representation of periods ought to be simplified
+to only keep a number of days and a number of months.
+
+With this tweak, the following lemma should be true:
+
+```
+forall d : date, a:int, b:int,
+add_period d (a year and b months) == add_period d ((12a+b) months)
+```
+
+With the old implementation, the counterexample a=1, b=36, d=29/02/2004 yielded
+a falsity.
+
+## Capping the rounding difference
+
+According to Raphaël, the following lemma seems to be true with the new implementation
+of `add_period`:
+
+```
+forall d:date, p:period,
+sub_dates (add_period_round_up d p) (add_period_round_down d p) <= 1 day
+```
+
+## Battle plan
+
+* [Raphaël] Finish engineering tasks related to swapping the Catala runtime
+* [Aymeric] Update the `add_period` function and its mirror F* version
+* [Denis] Add first day of month/last day of month operators
+* [Raphaël] Add `README.md` to project.
+* [Aymeric] Prove the divergence less than 1 day in F*
+* [Denis] Write issue precising how you can specify the rounding mode for dates in
+  the Catala syntax.
+
+The ambiguity detection mechanism with abstract interpretation is left for
+later.
