@@ -137,9 +137,14 @@ let round_date ~(round : date_rounding) (new_date : date) =
     | RoundDown -> prev_valid_date new_date
     | RoundUp -> next_valid_date new_date
 
+(** This function is only ever called from `add_dates` below.
+    Hence, any call to `add_dates_years` will be followed by a call
+    to `add_dates_month`. We therefore perform a single rounding
+    in `add_dates_month`, to avoid introducing additional imprecision here,
+    and to ensure that adding n years + m months is always equivalent to
+    adding (12n + m) months *)
 let add_dates_years ~(round : date_rounding) (d : date) (years : int) : date =
-  let new_date = { d with year = d.year + years } in
-  round_date ~round new_date
+  { d with year = d.year + years }
 
 let add_dates_month ~(round : date_rounding) (d : date) (months : int) : date =
   let new_year, new_month =
