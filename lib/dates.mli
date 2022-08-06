@@ -60,3 +60,5 @@ val format_period : Format.formatter -> period -> unit
 val period_to_days : period -> int
 (** @raise [AmbiguousComputation]
       when the period is anything else than a number of days. *)
+
+val period_to_ymds : period -> int * int * int

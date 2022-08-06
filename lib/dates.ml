@@ -259,3 +259,5 @@ let rec sub_dates (d1 : date) (d2 : date) : period =
         (sub_dates d1 new_d2)
 
 let date_to_ymd (d : date) : int * int * int = d.year, d.month, d.day
+
+let period_to_ymds (p : period) : int * int * int = p.years, p.months, p.days
