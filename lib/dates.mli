@@ -47,6 +47,9 @@ val date_to_ymd : date -> int * int * int
 val format_date : Format.formatter -> date -> unit
 (** Respects ISO8601 format. *)
 
+val first_day_of_month : date -> date
+val last_day_of_month : date -> date
+
 (** {2 Functions on periods}*)
 
 val make_period : years:int -> months:int -> days:int -> period

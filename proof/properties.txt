@@ -65,8 +65,8 @@ sub_dates (add_period_round_up d p) (add_period_round_down d p) <= 1 day
 
 * [Raphaël] Finish engineering tasks related to swapping the Catala runtime
 * [Aymeric] Update the `add_period` function and its mirror F* version
-* [Denis] Add first day of month/last day of month operators
-* [Raphaël] Add `README.md` to project.
+* ~~[Raphaël, was Denis]~~ Add first day of month/last day of month operators
+* ~~[Raphaël]~~ Add `README.md` to project.
 * [Aymeric] Prove the divergence less than 1 day in F*
 * [Denis] Write issue precising how you can specify the rounding mode for dates in
   the Catala syntax.

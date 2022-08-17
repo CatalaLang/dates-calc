@@ -222,6 +222,15 @@ let compare_dates (d1 : date) (d2 : date) : int =
 let format_date (fmt : Format.formatter) (d : date) : unit =
   Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day
 
+let first_day_of_month (d : date) : date =
+  assert(is_valid_date d);
+  make_date ~year:d.year ~month:d.month ~day:1
+
+let last_day_of_month (d : date) : date =
+  assert(is_valid_date d);
+  let days_month = days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year) in
+  make_date ~year:d.year ~month:d.month ~day:days_month
+
 let neg_period (p : period) : period =
   { years = -p.years; months = -p.months; days = -p.days }
 
