@@ -50,6 +50,8 @@ val format_date : Format.formatter -> date -> unit
 val first_day_of_month : date -> date
 val last_day_of_month : date -> date
 
+val is_leap_year : int -> bool
+
 (** {2 Functions on periods}*)
 
 val make_period : years:int -> months:int -> days:int -> period
