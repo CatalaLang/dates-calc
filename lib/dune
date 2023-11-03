@@ -1,2 +1,4 @@
 (library
- (public_name dates_calc))
+ (libraries str)
+ (public_name dates_calc)
+)

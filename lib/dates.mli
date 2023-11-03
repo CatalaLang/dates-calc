@@ -47,6 +47,8 @@ val date_to_ymd : date -> int * int * int
 val format_date : Format.formatter -> date -> unit
 (** Respects ISO8601 format. *)
 
+val date_of_string : string -> date
+
 val first_day_of_month : date -> date
 val last_day_of_month : date -> date
 
@@ -61,6 +63,7 @@ val sub_periods : period -> period -> period
 val mul_period : period -> int -> period
 
 val format_period : Format.formatter -> period -> unit
+val period_of_string : string -> period
 
 val period_to_days : period -> int
 (** @raise [AmbiguousComputation]

@@ -1,6 +1,6 @@
 (* This file is part of the Dates_calc library. Copyright (C) 2022 Inria,
    contributors: Denis Merigoux <denis.merigoux@inria.fr>, Aymeric Fromherz
-   <aymeric.fromherz@inria.fr>, Raphaël Monat <raphael.monat@lip6.fr>
+   <aymeric.fromherz@inria.fr>, Raphaël Monat <raphael.monat@inria.fr>
 
    Licensed under the Apache License, Version 2.0 (the "License"); you may not
    use this file except in compliance with the License. You may obtain a copy of
@@ -34,11 +34,19 @@ type date_rounding =
           [AmbiguousComputation]. *)
 
 (** {2 Functions on periods}*)
+let make_period ~(years : int) ~(months : int) ~(days : int) : period =
+  { years; months; days }
+
 let format_period (fmt : Format.formatter) (p : period) : unit =
   Format.fprintf fmt "[%d years, %d months, %d days]" p.years p.months p.days
 
-let make_period ~(years : int) ~(months : int) ~(days : int) : period =
-  { years; months; days }
+let period_of_string str =
+  let re = Str.regexp {|\[\([0-9]+\) years, \([0-9]+\) months, \([0-9]+\) days\]|} in
+  assert (Str.string_match re str 0);
+  let years = int_of_string @@ Str.matched_group 1 str in
+  let months = int_of_string @@ Str.matched_group 2 str in
+  let days = int_of_string @@ Str.matched_group 3 str in
+  make_period ~years ~months ~days
 
 let add_periods (d1 : period) (d2 : period) : period =
   {
@@ -153,6 +161,7 @@ let add_dates_month ~(round : date_rounding) (d : date) (months : int) : date =
   let new_date = { d with year = new_year; month = new_month } in
   round_date ~round new_date
 
+
 let rec add_dates_days (d : date) (days : int) =
   (* Hello, dear reader! Buckle up because it will be a hard ride. The first
      thing to do here is to retrieve how many days there are in the current
@@ -208,6 +217,8 @@ let rec add_dates_days (d : date) (days : int) =
 let add_dates ?(round : date_rounding = AbortOnRound) (d : date) (p : period) :
     date =
   let d = add_dates_years ~round d p.years in
+  (* NB: after add_dates_years, the date may not be correct.
+     Rounding will be performed later, by add_dates_month *)
   let d = add_dates_month ~round d p.months in
   let d = add_dates_days d p.days in
   d
@@ -221,6 +232,17 @@ let compare_dates (d1 : date) (d2 : date) : int =
 (** Respects ISO8601 format. *)
 let format_date (fmt : Format.formatter) (d : date) : unit =
   Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day
+
+let date_of_string str =
+  let re =
+    Str.regexp {|\([0-9][0-9][0-9][0-9]\)-\([0-9][0-9]\)-\([0-9][0-9]\)|}
+  in
+  assert (Str.string_match re str 0);
+  let year = int_of_string @@ Str.matched_group 1 str in
+  let month = int_of_string @@ Str.matched_group 2 str in
+  let day = int_of_string @@ Str.matched_group 3 str in
+  make_date ~year ~month ~day
+
 
 let first_day_of_month (d : date) : date =
   assert(is_valid_date d);
