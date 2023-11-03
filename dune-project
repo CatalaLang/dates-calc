@@ -6,7 +6,7 @@
         "Denis Merigoux"
         "Raphaël Monat")
 (maintainers
-        "Raphaël Monat <raphael.monat@lip6.fr>")
+        "Raphaël Monat <raphael.monat+NOSPAM@inria.fr>")
 (source (github CatalaLang/dates-calc))
 (license "Apache-2.0")
 
