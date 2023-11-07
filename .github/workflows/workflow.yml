@@ -5,6 +5,7 @@ on:
   - push
 
 jobs:
+
   build:
     strategy:
       fail-fast: false
@@ -23,6 +24,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Opam modules cache
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-opam-modules
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('mlang.opam', 'Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v2
@@ -44,5 +57,12 @@ jobs:
 
       - run: python3 -m unittest test.unit
 
-      - name: Deploy odoc to GitHub Pages
-        uses: ocaml/setup-ocaml/deploy-doc@v2
+      - run: pwd
+      - run: ls -R
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3.9.3
+        # if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_build/default/_doc/_html/
