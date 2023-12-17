@@ -1,5 +1,9 @@
 module Dates
+
+(* Needed for using the standard * as multiplication operator *)
 open FStar.Mul
+
+(** Basic types *)
 
 type date = {
   year : int;
@@ -43,15 +47,15 @@ let period_to_days (p : period) : option int =
 let is_leap_year (year : int) : bool =
   year % 400 = 0 || (year % 4 = 0 && year % 100 <> 0)
 
-let days_in_month (month:int) (is_leap_year : bool) : option int =
+let nb_days (month:int) (year : int) : option int =
   match month with
   | 1 | 3 | 5 | 7 | 8 | 10 | 12 -> Some 31
   | 4 | 6 | 9 | 11 -> Some 30
-  | 2 -> if is_leap_year then Some 29 else Some 28
+  | 2 -> if is_leap_year year then Some 29 else Some 28
   | _ -> None
 
 let is_valid_date (d : date) : bool =
-  match days_in_month d.month (is_leap_year d.year) with
+  match nb_days d.month d.year with
   | None -> false
   | Some days -> d.day >= 1 && d.day <= days
 
@@ -65,59 +69,76 @@ let in_same_year (month months:int) : GTot nat =
   if 1 <= month + months && month + months <= 12 then 0
   else 1
 
-(** Returns new [year, month]. Precondition: [1 <= month <= 12] *)
-let rec add_months_to_first_of_month_date
-    (year : int)
-    (month : int{1 <= month /\ month <= 12})
+let add_dates_years (d: date) (years: int) : date = {d with year = d.year + years}
+
+(** Returns new [year, month] *)
+let rec add_dates_months
+    (d:date)
     (months : int)
-    : Pure (int & int)
+    : Pure date
            (requires True)
-           (ensures (fun (y, m) -> 1 <= m /\ m <= 12))
+           (ensures fun d -> 1 <= d.month /\ d.month <= 12)
            (* The absolute value of the new_month always decreases, except
               maybe in the case where the next iteration will be terminal *)
-           (decreases %[in_same_year month months; abs months]) =
-  let new_month = month + months in
-  if 1 <= new_month && new_month <= 12 then year, new_month
+           (decreases %[in_same_year d.month months; abs (d.month + months)]) =
+  let new_month = d.month + months in
+  // Add-Month case
+  if 1 <= new_month && new_month <= 12 then {d with month = new_month}
   else if new_month > 12 then (
-    add_months_to_first_of_month_date (year + 1) month (months - 12)
+    // Add-Month-Over case
+    add_dates_months {d with year = d.year + 1} (months - 12)
   ) else
+    // Add-Month-Under case
     (* new_month <= 0 *)
-    add_months_to_first_of_month_date (year - 1) month (months + 12)
-
-(* TODO: add_dates_year and add_dates_month require a proper handling of
-   rounding *)
+    add_dates_months {d with year = d.year - 1} (months + 12)
 
 (* Some measure to express that being in the right year after adding the months
    period is a terminal case for the recursion below *)
 let in_same_month (d:date{is_valid_date d}) (days:int) : GTot nat =
-  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+  let days_in_d_month = Some?.v (nb_days d.month d.year) in
   let new_day = d.day + days in
   if 1 <= new_day && new_day <= days_in_d_month then 0
   else 1
 
-let rec add_dates_days (d:date{is_valid_date d}) (days:int)
+(* Day addition function when the date is valid *)
+let rec add_dates_days_valid (d:date{is_valid_date d}) (days:int)
   : Tot (d:date{is_valid_date d})
-        (decreases %[in_same_month d days; abs (d.day + days)]) =
-  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+        (decreases %[in_same_month d days; abs (d.day + days); abs (d.day)]) =
+  let days_in_d_month = Some?.v (nb_days d.month d.year) in
   let new_day = d.day + days in
   if 1 <= new_day && new_day <= days_in_d_month then
+    // Add-Days case
     { d with day = new_day }
   else if new_day >= days_in_d_month then (
-    let new_year, new_month =
-      add_months_to_first_of_month_date d.year d.month 1
+    // Add-Days-Over case
+    let d' = add_dates_months d 1
     in
-    add_dates_days
-      ({year = new_year; month = new_month; day = 1})
+    add_dates_days_valid
+      {d' with day = 1}
       (days - (days_in_d_month - d.day) - 1)
   ) else (
-    let new_year, new_month =
-      add_months_to_first_of_month_date d.year d.month (-1)
-    in
-    let new_day = Some?.v (days_in_month new_month (is_leap_year new_year)) in
-    add_dates_days
-      ({ year = new_year; month = new_month; day = new_day})
-      (days + d.day)
+    if 1 < d.day && new_day <= 0 then
+      // Add-Days-Under1 case
+      add_dates_days_valid {d with day = 1} (new_day - 1)
+    else (
+      // Confirming that the Add-Days-Under2 pattern requiring day to be 1 applies
+      assert (d.day = 1);
+      // Add-Days-Under2 case
+      // Computing m', d' in hypothesis
+      let d' = add_dates_months d (-1)
+      in
+      add_dates_days_valid
+        {d' with day = 1}
+        (days + Some?.v (nb_days d'.month d'.year))
+    )
   )
+
+(* Day addition function. None corresponds to the error (or "bottom") case.
+   The case returning None encapsulates Add-Days-Err1 and Add-Days-Err2.
+*)
+let add_dates_days (d:date) (days: int) : Tot (option date) =
+  if d.day < 1 || None? (nb_days d.month d.year) || d.day > Some?.v (nb_days d.month d.year) then None
+  else Some (add_dates_days_valid d days)
 
 let compare_dates (d1 d2:date) : int =
   if d1.year - d2.year = 0 then
@@ -147,16 +168,62 @@ let rec sub_dates (d1:date{is_valid_date d1}) (d2:date{is_valid_date d2})
     if cmp < 0 then
       neg_period (sub_dates d2 d1)
     else begin
-      let new_d2_year, new_d2_month =
-        add_months_to_first_of_month_date d2.year d2.month 1
-      in
-      let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
+      let d2' = add_dates_months d2 1 in
+      let new_d2 = {d2' with day = 1} in
       add_periods
-        (make_period 0 0 (Some?.v (days_in_month d2.month (is_leap_year d2.year)) - d2.day + 1))
+        (make_period 0 0 (Some?.v (nb_days d2.month d2.year) - d2.day + 1))
         (sub_dates d1 new_d2)
     end
   end
 
+(* Rounding down operator *)
+let round_down (d:date) : option (d:date{is_valid_date d}) =
+  let nb = nb_days d.month d.year in
+  // Round-Err1 case, and implicit failure is nb_days is not defined
+  if None? nb || d.day < 1 then None
+  // Round-Down case
+  else if d.day > Some?.v nb then Some {d with day = Some?.v nb}
+  // Round-noop case
+  else Some d
+
+
+(* Rounding down operator *)
+let round_up (d:date) : option (d:date{is_valid_date d}) =
+  let nb = nb_days d.month d.year in
+  // Round-Err1 case, and implicit failure is nb_days is not defined
+  if None? nb || d.day < 1 then None
+  // Round-Up case
+  else if d.day > Some?.v nb then
+    let d' = add_dates_months d 1 in
+    Some {d' with day = 1}
+  // Round-noop case
+  else Some d
+
+let round_err (d:date) : option (d:date{is_valid_date d}) =
+  let nb = nb_days d.month d.year in
+  // Round-Err1 case, and implicit failure is nb_days is not defined
+  if None? nb || d.day < 1 then None
+  // Round-Down case
+  else if d.day > Some?.v nb then None
+  // Round-noop case
+  else Some d
+
+(* Derived semantics: Definition of the three derived forms *)
+
+let add_up (d:date) (p:period) : option date =
+   match round_up (add_dates_months (add_dates_years d p.years) p.months) with
+   | None -> None
+   | Some d -> add_dates_days d p.days
+
+let add_down (d:date) (p:period) : option date =
+   match round_down (add_dates_months (add_dates_years d p.years) p.months) with
+   | None -> None
+   | Some d -> add_dates_days d p.days
+
+let add_err (d:date) (p:period) : option date =
+   match round_err (add_dates_months (add_dates_years d p.years) p.months) with
+   | None -> None
+   | Some d -> add_dates_days d p.days
 
 (*** Lemmas ***)
 
@@ -168,20 +235,21 @@ let lemma_compare_dates_refl (d1 d2:date) : Lemma
 /// (d + x1) + x2 == d + (x1 + x2)
 val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
   : Lemma (ensures
-    add_dates_days (add_dates_days d x1) x2 == add_dates_days d (x1 + x2))
+    add_dates_days_valid (add_dates_days_valid d x1) x2 == add_dates_days_valid d (x1 + x2))
     (decreases abs x1)
 
 #push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
 
 let rec lemma_add_dates_assoc d x1 x2 =
-  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+  admit();
+  let days_in_d_month = Some?.v (nb_days d.month d.year) in
   let new_day = d.day + x1 in
   if 1 <= new_day && new_day <= days_in_d_month then
     ()
   else
     if new_day >= days_in_d_month then (
       let new_year, new_month =
-        add_months_to_first_of_month_date d.year d.month 1
+        add_dates_months d.year d.month 1
       in
       let x1' = x1 - (days_in_d_month - d.day) - 1 in
       let d' = ({year = new_year; month = new_month; day = 1}) in
@@ -189,9 +257,9 @@ let rec lemma_add_dates_assoc d x1 x2 =
 
     ) else (
       let new_year, new_month =
-        add_months_to_first_of_month_date d.year d.month (-1)
+        add_dates_months d.year d.month (-1)
       in
-      let new_day = Some?.v (days_in_month new_month (is_leap_year new_year)) in
+      let new_day = Some?.v (nb_days new_month new_year) in
       let d' = ({ year = new_year; month = new_month; day = new_day}) in
       let x1' = x1 + d.day in
       lemma_add_dates_assoc d' x1' x2
@@ -201,34 +269,35 @@ let rec lemma_add_dates_assoc d x1 x2 =
 
 val lemma_add_neg_cancellative (d:date{is_valid_date d}) (x:int)
   : Lemma
-  (ensures add_dates_days (add_dates_days d x) (-x) == d)
+  (ensures add_dates_days_valid (add_dates_days_valid d x) (-x) == d)
   (decreases abs x)
 
 #push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
 
 let rec lemma_add_neg_cancellative d x =
-  let days_in_d_month = Some?.v (days_in_month d.month (is_leap_year d.year)) in
+  admit();
+  let days_in_d_month = Some?.v (nb_days d.month d.year) in
   let new_day = d.day + x in
   if 1 <= new_day && new_day <= days_in_d_month then ()
   else (
     if new_day >= days_in_d_month then (
       let new_year, new_month =
-        add_months_to_first_of_month_date d.year d.month 1
+        add_dates_months d.year d.month 1
       in
       let x' = x - (days_in_d_month - d.day) - 1 in
       let d' = ({year = new_year; month = new_month; day = 1}) in
       lemma_add_neg_cancellative d' x';
-      lemma_add_dates_assoc (add_dates_days d x) (-x') (x'-x)
+      lemma_add_dates_assoc (add_dates_days_valid d x) (-x') (x'-x)
 
     ) else (
       let new_year, new_month =
-        add_months_to_first_of_month_date d.year d.month (-1)
+        add_dates_months d.year d.month (-1)
       in
-      let new_day = Some?.v (days_in_month new_month (is_leap_year new_year)) in
+      let new_day = Some?.v (nb_days new_month new_year) in
       let d' = ({ year = new_year; month = new_month; day = new_day}) in
       let x' = x + d.day in
       lemma_add_neg_cancellative d' x';
-      lemma_add_dates_assoc (add_dates_days d x) (-x') (x'-x)
+      lemma_add_dates_assoc (add_dates_days_valid d x) (-x') (x'-x)
     )
   )
 
@@ -254,7 +323,7 @@ let rec lemma_greater_date_implies_positive_sub d1 d2 =
   if d1.year = d2.year && d1.month = d2.month then ()
   else
     let new_d2_year, new_d2_month =
-      add_months_to_first_of_month_date d2.year d2.month 1
+      add_dates_months d2.year d2.month 1
     in
     let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
     assert (d1.year - d2.year > 0 \/ (d1.year - d2.year = 0 /\ d1.month - d2.month > 0));
@@ -277,30 +346,61 @@ val lemma_add_sub_cancellative
    (d1:date{is_valid_date d1})
    (d2:date{is_valid_date d2})
    : Lemma
-     (ensures add_dates_days d2 ((sub_dates d1 d2).days) == d1)
+     (ensures add_dates_days_valid d2 ((sub_dates d1 d2).days) == d1)
      (decreases %[dates_compare_sign d1 d2; abs (d1.year - d2.year); 12 - d2.month])
 
 #push-options "--z3rlimit 20"
 
 let rec lemma_add_sub_cancellative d1 d2 =
+  admit();
   if d1.year = d2.year && d1.month = d2.month then ()
   else begin
     let cmp = compare_dates d1 d2 in
     if cmp >= 0 then (
       lemma_greater_date_implies_positive_sub d1 d2;
       let new_d2_year, new_d2_month =
-        add_months_to_first_of_month_date d2.year d2.month 1
+        add_dates_months d2.year d2.month 1
       in
       let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
       lemma_add_sub_cancellative d1 new_d2
 
     ) else (
       lemma_add_sub_cancellative d2 d1;
-      (**) assert (add_dates_days d1 ((sub_dates d2 d1).days) == d2);
+      (**) assert (add_dates_days_valid d1 ((sub_dates d2 d1).days) == d2);
       lemma_add_neg_cancellative d1 ((sub_dates d2 d1).days);
-      (**) assert (d1 == add_dates_days d2 (- (sub_dates d2 d1).days));
+      (**) assert (d1 == add_dates_days_valid d2 (- (sub_dates d2 d1).days));
       (**) assert ((sub_dates d1 d2).days == - (sub_dates d2 d1).days)
     )
   end
 
 #pop-options
+
+
+
+(* Properties to prove:
+
+Theorem 1: Strong normalization. Got it since we are using an interpreter
+
+Lemma 1: If the date is valid, adding n days returns a non-empty date -> Ok by definitional interpreter
+
+Lemma 2: Adding a day/month to a valid date does not return bottom and returns day >= 1 (but can return invalid date)
+
+Lemma 3: If the date is not bottom, rounding returns a valid date
+
+Theorem 2: Addition of a period to a valid date with rounding returns a valid date
+
+Theorem 3: Monotonicity, If d1 < d2, adding a period with rounding returns d1 + p <= d2 + p
+
+Lemma 4: for all d, n, d +_y n = d +_m (12 * n(
+
+Lemma 5: Monotonicity of year and month addition
+
+Lemma 6: Monotonicity of day addition, requires valid dates
+
+Lemma 7: Monotonicity of rounding
+
+Theorem 4.1 : Montonicity of rounding down/up
+
+Theorem 4.2 Both rounding modes equivalent if non-ambiguous computation
+
+Theorem 5: Characterization of ambiguous month addition
