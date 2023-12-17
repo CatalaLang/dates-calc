@@ -177,7 +177,7 @@ let rec sub_dates (d1:date{is_valid_date d1}) (d2:date{is_valid_date d2})
   end
 
 (* Rounding down operator *)
-let round_down (d:date) : option (d:date{is_valid_date d}) =
+let round_down (d:date) : option date =
   let nb = nb_days d.month d.year in
   // Round-Err1 case, and implicit failure is nb_days is not defined
   if None? nb || d.day < 1 then None
@@ -188,7 +188,7 @@ let round_down (d:date) : option (d:date{is_valid_date d}) =
 
 
 (* Rounding down operator *)
-let round_up (d:date) : option (d:date{is_valid_date d}) =
+let round_up (d:date) : option date =
   let nb = nb_days d.month d.year in
   // Round-Err1 case, and implicit failure is nb_days is not defined
   if None? nb || d.day < 1 then None
@@ -199,7 +199,7 @@ let round_up (d:date) : option (d:date{is_valid_date d}) =
   // Round-noop case
   else Some d
 
-let round_err (d:date) : option (d:date{is_valid_date d}) =
+let round_err (d:date) : option date =
   let nb = nb_days d.month d.year in
   // Round-Err1 case, and implicit failure is nb_days is not defined
   if None? nb || d.day < 1 then None
@@ -227,180 +227,234 @@ let add_err (d:date) (p:period) : option date =
 
 (*** Lemmas ***)
 
-/// compare_dates returns 0 iff the two dates are equal
-let lemma_compare_dates_refl (d1 d2:date) : Lemma
-  (compare_dates d1 d2 = 0 <==> d1 = d2)
+(* Several of the lemmas and theorems stated in the paper are intrinsically proven above.
+   We however restate them below *)
+
+(* Proving Theorem1 for day, month, and year *)
+let theorem1_day (d: date) (n: int) : Lemma (exists (v:option date). add_dates_days d n == v) =
+  FStar.Classical.exists_intro (fun v -> add_dates_days d n == v) (add_dates_days d n)
+
+let theorem1_month (d: date) (n: int) : Lemma (exists (v:date). add_dates_months d n == v) =
+  FStar.Classical.exists_intro (fun v -> add_dates_months d n == v) (add_dates_months d n)
+
+let theorem1_year (d: date) (n: int) : Lemma (exists (v:date). add_dates_years d n == v) =
+  FStar.Classical.exists_intro (fun v -> add_dates_years d n == v) (add_dates_years d n)
+
+(* Lemma 1: Well-formedness of day addition. The bottom case is represented by None *)
+let lemma1 (d:date{is_valid_date d}) (n:int) (v: option date) : Lemma
+  (requires add_dates_days d n == v)
+  (ensures Some? v)
   = ()
 
-/// (d + x1) + x2 == d + (x1 + x2)
-val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
-  : Lemma (ensures
-    add_dates_days_valid (add_dates_days_valid d x1) x2 == add_dates_days_valid d (x1 + x2))
-    (decreases abs x1)
+(* Lemma 2: Well-formedness of year/month addition. We directly have that the result
+   is not bottom since none of the functions return an option *)
 
-#push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
+(* Going through an auxiliary function as recursive calls do not always correspond
+   to a valid d:date, although it is never a bottom case *)
+let rec lemma2_month' (d:date) (n:int) (v: date) : Lemma
+  (requires d.day >= 1 /\ add_dates_months d n == v)
+  (ensures v.day >= 1)
+  (decreases %[in_same_year d.month n; abs (d.month + n)])
+  =
+  let new_month = d.month + n in
+  // Add-Month case
+  if 1 <= new_month && new_month <= 12 then ()
+  else if new_month > 12 then (
+    lemma2_month' {d with year = d.year + 1} (n - 12) v
+  ) else
+    lemma2_month' {d with year = d.year - 1} (n + 12) v
 
-let rec lemma_add_dates_assoc d x1 x2 =
-  admit();
-  let days_in_d_month = Some?.v (nb_days d.month d.year) in
-  let new_day = d.day + x1 in
-  if 1 <= new_day && new_day <= days_in_d_month then
-    ()
-  else
-    if new_day >= days_in_d_month then (
-      let new_year, new_month =
-        add_dates_months d.year d.month 1
-      in
-      let x1' = x1 - (days_in_d_month - d.day) - 1 in
-      let d' = ({year = new_year; month = new_month; day = 1}) in
-      lemma_add_dates_assoc d' x1' x2
+(* Actual lemma statement *)
+let lemma2_month (d:date) (n:int) (v: date) : Lemma
+  (requires is_valid_date d /\ add_dates_months d n == v)
+  (ensures v.day >= 1)
+  = lemma2_month' d n v
 
-    ) else (
-      let new_year, new_month =
-        add_dates_months d.year d.month (-1)
-      in
-      let new_day = Some?.v (nb_days new_month new_year) in
-      let d' = ({ year = new_year; month = new_month; day = new_day}) in
-      let x1' = x1 + d.day in
-      lemma_add_dates_assoc d' x1' x2
-    )
+let lemma2_year (d:date) (n:int) (v: date) : Lemma
+  (requires is_valid_date d /\ add_dates_years d n == v)
+  (ensures v.day >= 1)
+  = ()
 
-#pop-options
 
-val lemma_add_neg_cancellative (d:date{is_valid_date d}) (x:int)
-  : Lemma
-  (ensures add_dates_days_valid (add_dates_days_valid d x) (-x) == d)
-  (decreases abs x)
+(* Lemma 3: Well-formedness of rounding. Again, the hypothesis d <> bottom is
+   encoded by taking a `date` instead of an `option date`.
+ *)
+let lemma3_up (d:date) (v:option date) : Lemma
+  (requires Some? (nb_days d.month d.year) /\ d.day >= 1 /\ round_up d == v)
+  (ensures Some? v /\ is_valid_date (Some?.v v))
+  = ()
 
-#push-options "--z3rlimit 50 --fuel 2 --ifuel 0"
+let lemma3_down (d:date) (v:option date) : Lemma
+  (requires Some? (nb_days d.month d.year) /\ d.day >= 1 /\ round_down d == v)
+  (ensures Some? v /\ is_valid_date (Some?.v v))
+  = ()
 
-let rec lemma_add_neg_cancellative d x =
-  admit();
-  let days_in_d_month = Some?.v (nb_days d.month d.year) in
-  let new_day = d.day + x in
-  if 1 <= new_day && new_day <= days_in_d_month then ()
-  else (
-    if new_day >= days_in_d_month then (
-      let new_year, new_month =
-        add_dates_months d.year d.month 1
-      in
-      let x' = x - (days_in_d_month - d.day) - 1 in
-      let d' = ({year = new_year; month = new_month; day = 1}) in
-      lemma_add_neg_cancellative d' x';
-      lemma_add_dates_assoc (add_dates_days_valid d x) (-x') (x'-x)
+(* Theorem 2 : Well-formedness. Proven by combining the lemmas above *)
+let theorem2_up (d:date) (p:period) (v: option date) : Lemma
+  (requires is_valid_date d /\ add_up d p == v)
+  (ensures Some? v /\ is_valid_date (Some?.v v))
+  = let v_y = add_dates_years d p.years in
+    let v_m = add_dates_months v_y p.months in
+    let v_rnd = round_up v_m in
+    lemma2_month' v_y p.months v_m;
+    lemma3_up v_m v_rnd
 
-    ) else (
-      let new_year, new_month =
-        add_dates_months d.year d.month (-1)
-      in
-      let new_day = Some?.v (nb_days new_month new_year) in
-      let d' = ({ year = new_year; month = new_month; day = new_day}) in
-      let x' = x + d.day in
-      lemma_add_neg_cancellative d' x';
-      lemma_add_dates_assoc (add_dates_days_valid d x) (-x') (x'-x)
-    )
+let theorem2_down (d:date) (p:period) (v: option date) : Lemma
+  (requires is_valid_date d /\ add_down d p == v)
+  (ensures Some? v /\ is_valid_date (Some?.v v))
+  = let v_y = add_dates_years d p.years in
+    let v_m = add_dates_months v_y p.months in
+    let v_rnd = round_down v_m in
+    lemma2_month' v_y p.months v_m;
+    lemma3_down v_m v_rnd
+
+(* Lemma 4: Equivalence of year and month addition *)
+let rec lemma4 (d: date) (n: int)
+  : Lemma (requires 1 <= d.month /\ d.month <= 12)
+          (ensures add_dates_years d n == add_dates_months d (12 * n))
+          (decreases %[in_same_year d.month (12 * n); abs (d.month + 12 * n)])
+  =
+  let months = 12 * n in
+  let new_month = d.month + months in
+  if 1 <= new_month && new_month <= 12 then ()
+  else if new_month > 12 then (
+    lemma4 {d with year = d.year + 1} (n - 1)
+  ) else (
+    lemma4 {d with year = d.year - 1} (n + 1)
   )
 
-#pop-options
+(* Lemma 5: Monotonicity of year and month addition *)
+let lemma5_year (d1 d2:date) (n: int) : Lemma
+  (requires compare_dates d1 d2 < 0) // Encoding d1 < d2
+  // Encoding d1 + n < d2 + n
+  (ensures compare_dates (add_dates_years d1 n) (add_dates_years d2 n) < 0)
+  = ()
 
-val lemma_equal_dates_implies_zero_sub
-   (d1:date{is_valid_date d1})
-   (d2:date{is_valid_date d2})
-   : Lemma (requires compare_dates d1 d2 = 0)
-           (ensures (sub_dates d1 d2).days = 0)
+let lemma5_month (d1 d2:date) (n: int) : Lemma
+  (requires compare_dates d1 d2 < 0) // Encoding d1 < d2
+  // Encoding d1 + n < d2 + n
+  (ensures compare_dates (add_dates_months d1 n) (add_dates_months d2 n) < 0) =
+  admit()
 
-let lemma_equal_dates_implies_zero_sub d1 d2 = ()
+(* Lemma 6: Monotonicity of day addition *)
+let lemma6 (d1 d2:date) (n:int) : Lemma
+  (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 < 0)
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  = admit()
 
-val lemma_greater_date_implies_positive_sub
-   (d1:date{is_valid_date d1})
-   (d2:date{is_valid_date d2})
-   : Lemma (requires compare_dates d1 d2 > 0)
-           (ensures (sub_dates d1 d2).days > 0)
-           (decreases
-             %[abs (d1.year - d2.year); 12 - d2.month])
+(* A weaker version that also considers the case where both dates are equal *)
+let lemma6_weak (d1 d2:date) (n:int) : Lemma
+  (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 <= 0)
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) <= 0))
+  = if compare_dates d1 d2 = 0 then () // compare_dates = 0 corresponds to equality of dates
+    else lemma6 d1 d2 n
 
-let rec lemma_greater_date_implies_positive_sub d1 d2 =
-  if d1.year = d2.year && d1.month = d2.month then ()
-  else
-    let new_d2_year, new_d2_month =
-      add_dates_months d2.year d2.month 1
-    in
-    let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
-    assert (d1.year - d2.year > 0 \/ (d1.year - d2.year = 0 /\ d1.month - d2.month > 0));
-    if compare_dates d1 new_d2 = 0 then ()
-    else lemma_greater_date_implies_positive_sub d1 new_d2
+(* Lemma 7: Monotonicity of rounding *)
+let lemma7_up (d1 d2:date) : Lemma
+  (requires Some? (round_up d1) /\ Some? (round_up d2) /\ compare_dates d1 d2 < 0)
+  (ensures compare_dates (Some?.v (round_up d1)) (Some?.v (round_up d2)) <= 0)
+  = ()
 
-val lemma_smaller_date_implies_negative_sub
-   (d1:date{is_valid_date d1})
-   (d2:date{is_valid_date d2})
-   : Lemma (requires compare_dates d1 d2 < 0)
-           (ensures (sub_dates d1 d2).days < 0)
+let lemma7_down (d1 d2:date) : Lemma
+  (requires Some? (round_down d1) /\ Some? (round_down d2) /\ compare_dates d1 d2 < 0)
+  (ensures compare_dates (Some?.v (round_down d1)) (Some?.v (round_down d2)) <= 0)
+  = ()
 
-let lemma_smaller_date_implies_negative_sub d1 d2 =
-  if d1.year = d2.year && d1.month = d2.month then ()
-  else lemma_greater_date_implies_positive_sub d2 d1
+(* Theorem 3: Monotonicity *)
+let theorem3_up (d1:date {is_valid_date d1}) (d2: date{is_valid_date d2}) (p: period) : Lemma
+  (requires compare_dates d1 d2 < 0) // Encoding d1 < d2
+  (ensures Some? (add_up d1 p) /\ Some? (add_up d2 p) /\
+           // Encoding d1 + p <= d2 + p
+           compare_dates (Some?.v (add_up d1 p)) (Some?.v (add_up d2 p)) <= 0)
+  = let v1 = add_up d1 p in
+    let v2 = add_up d2 p in
+    theorem2_up d1 p v1;
+    theorem2_up d2 p v2;
+    let v1_y = add_dates_years d1 p.years in
+    let v1_m = add_dates_months v1_y p.months in
+    let v1_rnd = round_up v1_m in
+    let v2_y = add_dates_years d2 p.years in
+    let v2_m = add_dates_months v2_y p.months in
+    let v2_rnd = round_up v2_m in
+    lemma5_year d1 d2 p.years;
+    lemma5_month v1_y v2_y p.months;
+    lemma7_up v1_m v2_m;
+    lemma6_weak (Some?.v v1_rnd) (Some?.v v2_rnd) p.days
 
-/// forall d1 d2, compare_dates (add_dates d2 (sub_dates d1 d2)) d1 = 0.
-/// Since sub_dates always return a period_days, we state this using add_dates_days
-val lemma_add_sub_cancellative
-   (d1:date{is_valid_date d1})
-   (d2:date{is_valid_date d2})
-   : Lemma
-     (ensures add_dates_days_valid d2 ((sub_dates d1 d2).days) == d1)
-     (decreases %[dates_compare_sign d1 d2; abs (d1.year - d2.year); 12 - d2.month])
+let theorem3_down (d1:date {is_valid_date d1}) (d2: date{is_valid_date d2}) (p: period) : Lemma
+  (requires compare_dates d1 d2 < 0) // Encoding d1 < d2
+  (ensures Some? (add_down d1 p) /\ Some? (add_down d2 p) /\
+           // Encoding d1 + p <= d2 + p
+           compare_dates (Some?.v (add_down d1 p)) (Some?.v (add_down d2 p)) <= 0)
+  = let v1 = add_down d1 p in
+    let v2 = add_down d2 p in
+    theorem2_down d1 p v1;
+    theorem2_down d2 p v2;
+    let v1_y = add_dates_years d1 p.years in
+    let v1_m = add_dates_months v1_y p.months in
+    let v1_rnd = round_down v1_m in
+    let v2_y = add_dates_years d2 p.years in
+    let v2_m = add_dates_months v2_y p.months in
+    let v2_rnd = round_down v2_m in
+    lemma5_year d1 d2 p.years;
+    lemma5_month v1_y v2_y p.months;
+    lemma7_down v1_m v2_m;
+    lemma6_weak (Some?.v v1_rnd) (Some?.v v2_rnd) p.days
 
-#push-options "--z3rlimit 20"
+(* Theorem 4: Rounding *)
+let theorem_4_bot (d: date) (p:period) : Lemma
+  (Some? (add_up d p) <==> Some? (add_down d p))
+  = ()
 
-let rec lemma_add_sub_cancellative d1 d2 =
-  admit();
-  if d1.year = d2.year && d1.month = d2.month then ()
-  else begin
-    let cmp = compare_dates d1 d2 in
-    if cmp >= 0 then (
-      lemma_greater_date_implies_positive_sub d1 d2;
-      let new_d2_year, new_d2_month =
-        add_dates_months d2.year d2.month 1
-      in
-      let new_d2 = {year = new_d2_year; month = new_d2_month; day = 1} in
-      lemma_add_sub_cancellative d1 new_d2
+let theorem_4_1 (d:date) (p:period) : Lemma
+  // Having both is redundant, but we keep it for clarity
+  (requires Some? (add_up d p) /\ Some? (add_down d p))
+  (ensures compare_dates (Some?.v (add_down d p)) (Some?.v (add_up d p)) <= 0)
+  = let v_m = add_dates_months (add_dates_years d p.years) p.months in
+    let v_rnd_down = Some?.v (round_down v_m) in
+    let v_rnd_up = Some?.v (round_up v_m) in
+    assert (compare_dates v_rnd_down v_rnd_up <= 0);
+    lemma6_weak v_rnd_down v_rnd_up p.days
 
-    ) else (
-      lemma_add_sub_cancellative d2 d1;
-      (**) assert (add_dates_days_valid d1 ((sub_dates d2 d1).days) == d2);
-      lemma_add_neg_cancellative d1 ((sub_dates d2 d1).days);
-      (**) assert (d1 == add_dates_days_valid d2 (- (sub_dates d2 d1).days));
-      (**) assert ((sub_dates d1 d2).days == - (sub_dates d2 d1).days)
+let theorem_4_2 (d:date) (p:period) : Lemma
+  (requires Some? (add_err d p))
+  (ensures add_down d p == add_err d p /\ add_err d p == add_up d p)
+  = ()
+
+(* Theorem 5: Characterization of ambiguous month additions *)
+
+(* Going through an auxiliary function as recursive calls do not always correspond
+   to a valid d:date, although it is never a bottom case *)
+let rec theorem5' (d:date) (n:int) (v: date) : Lemma
+  (requires d.day >= 1 /\ add_dates_months d n == v)
+  (ensures (
+    let nb = nb_days v.month v.year in
+    Some? nb /\
+    (Some?.v nb < v.day <==> None? (round_err v))
+  ))
+  (decreases %[in_same_year d.month n; abs (d.month + n)])
+  =
+  let new_month = d.month + n in
+  if 1 <= new_month && new_month <= 12 then ()
+  else if new_month > 12 then (
+    theorem5' {d with year = d.year + 1} (n - 12) v
+  ) else
+    theorem5' {d with year = d.year - 1} (n + 12) v
+
+let theorem5 (d:date{is_valid_date d}) (n:int) (v: date) : Lemma
+  (requires add_dates_months d n == v)
+  (ensures (
+    let nb = nb_days v.month v.year in
+    Some? nb /\
+    (Some?.v nb < v.day <==> None? (round_err v))
     )
-  end
-
-#pop-options
-
-
-
-(* Properties to prove:
-
-Theorem 1: Strong normalization. Got it since we are using an interpreter
-
-Lemma 1: If the date is valid, adding n days returns a non-empty date -> Ok by definitional interpreter
-
-Lemma 2: Adding a day/month to a valid date does not return bottom and returns day >= 1 (but can return invalid date)
-
-Lemma 3: If the date is not bottom, rounding returns a valid date
-
-Theorem 2: Addition of a period to a valid date with rounding returns a valid date
-
-Theorem 3: Monotonicity, If d1 < d2, adding a period with rounding returns d1 + p <= d2 + p
-
-Lemma 4: for all d, n, d +_y n = d +_m (12 * n(
-
-Lemma 5: Monotonicity of year and month addition
-
-Lemma 6: Monotonicity of day addition, requires valid dates
-
-Lemma 7: Monotonicity of rounding
-
-Theorem 4.1 : Montonicity of rounding down/up
-
-Theorem 4.2 Both rounding modes equivalent if non-ambiguous computation
-
-Theorem 5: Characterization of ambiguous month addition
+  )
+  = theorem5' d n v
