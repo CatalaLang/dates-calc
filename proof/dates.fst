@@ -116,16 +116,17 @@ let rec add_dates_days_valid (d:date{is_valid_date d}) (days:int)
       {d' with day = 1}
       (days - (days_in_d_month - d.day) - 1)
   ) else (
-    if 1 < d.day && new_day <= 0 then
+    if 1 < d.day && new_day <= 0 then (
+      // Can be deduced from previous clauses, but we add it as an assertion for a sanity check
+      assert (d.day <= days_in_d_month);
       // Add-Days-Under1 case
       add_dates_days_valid {d with day = 1} (new_day - 1)
-    else (
+    ) else (
       // Confirming that the Add-Days-Under2 pattern requiring day to be 1 applies
       assert (d.day = 1);
       // Add-Days-Under2 case
       // Computing m', d' in hypothesis
-      let d' = add_dates_months d (-1)
-      in
+      let d' = add_dates_months d (-1) in
       add_dates_days_valid
         {d' with day = 1}
         (days + Some?.v (nb_days d'.month d'.year))
@@ -145,11 +146,6 @@ let compare_dates (d1 d2:date) : int =
     else d1.month - d2.month
   else d1.year - d2.year
 
-let neg_period (p:period) : period =
-  { years = -p.years; months = -p.months; days = -p.days }
-
-type period_days = p:period{p.years = 0 /\ p.months = 0}
-
 (* A termination measure used below, which decreases when d1 > d2 instead of d1 < d2 *)
 let dates_compare_sign (d1 d2:date)
   = if d1.year = d2.year && d1.month = d2.month then 0
@@ -158,20 +154,18 @@ let dates_compare_sign (d1 d2:date)
 
 (** The returned period is always expressed as a number of days *)
 let rec sub_dates (d1:date{is_valid_date d1}) (d2:date{is_valid_date d2})
-  : Tot period_days
+  : Tot int
   (decreases %[dates_compare_sign d1 d2; abs (d1.year - d2.year); 12 - d2.month]) =
   if d1.year = d2.year && d1.month = d2.month then
-    make_period 0 0 (d1.day - d2.day)
+    (d1.day - d2.day)
   else begin
     let cmp = compare_dates d1 d2 in
     if cmp < 0 then
-      neg_period (sub_dates d2 d1)
+      -(sub_dates d2 d1)
     else begin
       let d2' = add_dates_months d2 1 in
       let new_d2 = {d2' with day = 1} in
-      add_periods
-        (make_period 0 0 (Some?.v (nb_days d2.month d2.year) - d2.day + 1))
-        (sub_dates d1 new_d2)
+      (Some?.v (nb_days d2.month d2.year) - d2.day + 1) + (sub_dates d1 new_d2)
     end
   end
 
@@ -344,40 +338,140 @@ let rec lemma5_month (d1 d2:date) (n: int) : Lemma
 
 (* Lemma 6: Monotonicity of day addition *)
 
-(* IDEA: Use sub_dates as a number of days (instead of period) and show that the diff
-   remains constant, and that a diff > 0 implies compare > 0 *)
+type valid_date = d:date{is_valid_date d}
 
-let rec lemma6' (d1 d2:date) (n:int) : Lemma
-  (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 < 0)
-  (ensures (
+val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
+  : Lemma (ensures
+    add_dates_days_valid (add_dates_days_valid d x1) x2 == add_dates_days_valid d (x1 + x2))
+    (decreases abs x1)
+
+let lemma_add_dates_assoc d x1 x2 = admit()
+
+// Unclear why F* requires this much larger timeout for the following lemma
+// #push-options "--z3rlimit 200"
+
+#push-options "--z3rlimit 50"
+let lemma6_aux_case1 (d1 d2: valid_date) (n:int) : Lemma
+  (requires (
     let v1 = add_dates_days d1 n in
-    let v2 = add_dates_days d2 n in
-    Some? v1 /\ Some? v2 /\
-    compare_dates (Some?.v v1) (Some?.v v2) < 0))
-  = let nb1 = Some?.v (nb_days d1.month d1.year) in
-    let nb2 = Some?.v (nb_days d2.month d2.year) in
+    let nb1 = Some?.v (nb_days d1.month d1.year) in
     let new1 = d1.day + n in
-    let new2 = d2.day + n in
-    if 1 <= new1 && new1 <= nb1 then
-      if 1 <= new2 && new2 <= nb2 then
-       ()
-      else if new2 >= nb2 then (
-        let d2' = add_dates_months d2 1 in
-        assert (n - (nb2 - d2.day) - 1 >= 0);
-        admit()
-      ) else admit()
-    else admit()
-
-
-
-let lemma6 (d1 d2:date) (n:int) : Lemma
-  (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 < 0)
+    compare_dates d1 d2 < 0 /\
+    (1 <= new1 && new1 <= nb1)
+  ))
   (ensures (
     let v1 = add_dates_days d1 n in
     let v2 = add_dates_days d2 n in
     Some? v1 /\ Some? v2 /\
     compare_dates (Some?.v v1) (Some?.v v2) < 0))
-  = admit()
+  = ()
+#pop-options
+
+#push-options "--z3rlimit 500 --fuel 4 --ifuel 0"
+
+let rec lemma6_aux (d1 d2: valid_date) (n:int) : Lemma
+  (requires compare_dates d1 d2 < 0)
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  (decreases %[in_same_month d1 n; abs (d1.day + n); abs (d1.day); 1]) =
+  let v1 = add_dates_days d1 n in
+  let v2 = add_dates_days d2 n in
+  let nb1 = Some?.v (nb_days d1.month d1.year) in
+  let nb2 = Some?.v (nb_days d2.month d2.year) in
+  let new1 = d1.day + n in
+  let new2 = d2.day + n in
+  if 1 <= new1 && new1 <= nb1 then lemma6_aux_case1 d1 d2 n
+  else if new1 >= nb1 then lemma6_aux_case2 d1 d2 n
+  else (
+    if 1 < d1.day && new1 <= 0 then lemma6_aux_case3 d1 d2 n
+    else lemma6_aux_case4 d1 d2 n
+  )
+
+and lemma6_aux_case2 (d1 d2: valid_date) (n:int) : Lemma
+  (requires (
+    let v1 = add_dates_days d1 n in
+    let nb1 = Some?.v (nb_days d1.month d1.year) in
+    let new1 = d1.day + n in
+    compare_dates d1 d2 < 0 /\
+    not (1 <= new1 && new1 <= nb1) /\
+    (new1 >= nb1)
+  ))
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  (decreases %[in_same_month d1 n; abs (d1.day + n); abs (d1.day); 0]) =
+   let v1 = add_dates_days d1 n in
+   let nb1 = Some?.v (nb_days d1.month d1.year) in
+   let new1 = d1.day + n in
+   let d1' = add_dates_months d1 1 in
+   let n' = n - (nb1 - d1.day) - 1 in
+   lemma_add_dates_assoc d2 (n - n') n';
+   assert (add_dates_days (Some?.v (add_dates_days d2 (n - n'))) n' == add_dates_days d2 n);
+   lemma6_aux {d1' with day = 1} (Some?.v (add_dates_days d2 (n - n'))) n'
+
+and lemma6_aux_case3 (d1 d2: valid_date) (n:int) : Lemma
+  (requires (
+    let v1 = add_dates_days d1 n in
+    let nb1 = Some?.v (nb_days d1.month d1.year) in
+    let new1 = d1.day + n in
+    compare_dates d1 d2 < 0 /\
+    not (1 <= new1 && new1 <= nb1) /\
+    not (new1 >= nb1) /\
+    (1 < d1.day && new1 <= 0)
+  ))
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  (decreases %[in_same_month d1 n; abs (d1.day + n); abs (d1.day); 0]) =
+   let v1 = add_dates_days d1 n in
+   let nb1 = Some?.v (nb_days d1.month d1.year) in
+   let new1 = d1.day + n in
+   let n' = new1 - 1 in
+   lemma6_aux {d1 with day = 1} (Some?.v (add_dates_days d2 (n - n'))) n'
+
+
+and lemma6_aux_case4 (d1 d2: valid_date) (n:int) : Lemma
+  (requires (
+    let v1 = add_dates_days d1 n in
+    let nb1 = Some?.v (nb_days d1.month d1.year) in
+    let new1 = d1.day + n in
+    compare_dates d1 d2 < 0 /\
+    not (1 <= new1 && new1 <= nb1) /\
+    not (new1 >= nb1) /\
+    not (1 < d1.day && new1 <= 0)
+  ))
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  (decreases %[in_same_month d1 n; abs (d1.day + n); abs (d1.day); 0]) =
+  let d1' = add_dates_months d1 (-1) in
+  let nb' = Some?.v (nb_days d1'.month d1'.year) in
+  let d1' = {d1' with day = 1} in
+  let n' = n + nb' in
+  let d2' = Some?.v (add_dates_days d2 (n - n')) in
+  lemma6_aux d1' d2' n'
+
+
+#pop-options
+
+let lemma6 (d1 d2: valid_date) (n:int) : Lemma
+  (requires compare_dates d1 d2 < 0)
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  = lemma6_aux d1 d2 n
+
 
 (* A weaker version that also considers the case where both dates are equal *)
 let lemma6_weak (d1 d2:date) (n:int) : Lemma
