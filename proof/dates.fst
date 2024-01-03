@@ -338,18 +338,39 @@ let rec lemma5_month (d1 d2:date) (n: int) : Lemma
 
 (* Lemma 6: Monotonicity of day addition *)
 
+/// Type abbreviation to avoid repeating the is_valid_date as a precondition
 type valid_date = d:date{is_valid_date d}
 
+#push-options "--z3rlimit 50"
+
+// We need the following additional lemma, which states that day addition is associative
 val lemma_add_dates_assoc (d:date{is_valid_date d}) (x1 x2:int)
   : Lemma (ensures
     add_dates_days_valid (add_dates_days_valid d x1) x2 == add_dates_days_valid d (x1 + x2))
-    (decreases abs x1)
+    (decreases %[in_same_month d x1; abs (d.day + x1); abs (d.day)])
 
-let lemma_add_dates_assoc d x1 x2 = admit()
+let rec lemma_add_dates_assoc d x1 x2 =
+  let nb = Some?.v (nb_days d.month d.year) in
+  let new1 = d.day + x1 in
+  let new12 = d.day + (x1 + x2) in
+  if 1 <= new1 && new1 <= nb then ()
+  else if new1 >= nb then (
+    let d' = add_dates_months d 1 in
+    let x1' = x1 - (nb - d.day) - 1 in
+    lemma_add_dates_assoc {d' with day = 1} x1' x2
+  ) else (
+    if 1 < d.day && new1 <= 0 then (
+      lemma_add_dates_assoc {d with day = 1} (new1 - 1) x2
+    ) else (
+      let d' = add_dates_months d (-1) in
+      lemma_add_dates_assoc {d' with day = 1} (x1 + Some?.v (nb_days d'.month d'.year)) x2
+    )
+  )
+#pop-options
 
-// Unclear why F* requires this much larger timeout for the following lemma
-// #push-options "--z3rlimit 200"
 
+// Unclear why F* requires this much larger timeout for the following lemma.
+// We split it into several sub-lemmas to help with VC generation
 #push-options "--z3rlimit 50"
 let lemma6_aux_case1 (d1 d2: valid_date) (n:int) : Lemma
   (requires (
