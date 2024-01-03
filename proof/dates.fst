@@ -111,8 +111,7 @@ let rec add_dates_days_valid (d:date{is_valid_date d}) (days:int)
     { d with day = new_day }
   else if new_day >= days_in_d_month then (
     // Add-Days-Over case
-    let d' = add_dates_months d 1
-    in
+    let d' = add_dates_months d 1 in
     add_dates_days_valid
       {d' with day = 1}
       (days - (days_in_d_month - d.day) - 1)
@@ -330,13 +329,47 @@ let lemma5_year (d1 d2:date) (n: int) : Lemma
   (ensures compare_dates (add_dates_years d1 n) (add_dates_years d2 n) < 0)
   = ()
 
-let lemma5_month (d1 d2:date) (n: int) : Lemma
-  (requires compare_dates d1 d2 < 0) // Encoding d1 < d2
+let rec lemma5_month (d1 d2:date) (n: int) : Lemma
+  (requires compare_dates d1 d2 < 0 /\ // Encoding d1 < d2
+            1 <= d1.month /\ d1.month <= 12 /\
+            1 <= d2.month /\ d2.month <= 12)
   // Encoding d1 + n < d2 + n
-  (ensures compare_dates (add_dates_months d1 n) (add_dates_months d2 n) < 0) =
-  admit()
+  (ensures compare_dates (add_dates_months d1 n) (add_dates_months d2 n) < 0)
+  (decreases %[in_same_year d1.month n; abs (d1.month + n)]) =
+  let new1 = d1.month + n in
+  let new2 = d2.month + n in
+  if 1 <= new1 && new1 <= 12 then ()
+  else if new1 > 12 then lemma5_month ({d1 with year = d1.year + 1}) (add_dates_months d2 12) (n - 12)
+  else lemma5_month ({d1 with year = d1.year - 1}) (add_dates_months d2 (-12)) (n + 12)
 
 (* Lemma 6: Monotonicity of day addition *)
+
+(* IDEA: Use sub_dates as a number of days (instead of period) and show that the diff
+   remains constant, and that a diff > 0 implies compare > 0 *)
+
+let rec lemma6' (d1 d2:date) (n:int) : Lemma
+  (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 < 0)
+  (ensures (
+    let v1 = add_dates_days d1 n in
+    let v2 = add_dates_days d2 n in
+    Some? v1 /\ Some? v2 /\
+    compare_dates (Some?.v v1) (Some?.v v2) < 0))
+  = let nb1 = Some?.v (nb_days d1.month d1.year) in
+    let nb2 = Some?.v (nb_days d2.month d2.year) in
+    let new1 = d1.day + n in
+    let new2 = d2.day + n in
+    if 1 <= new1 && new1 <= nb1 then
+      if 1 <= new2 && new2 <= nb2 then
+       ()
+      else if new2 >= nb2 then (
+        let d2' = add_dates_months d2 1 in
+        assert (n - (nb2 - d2.day) - 1 >= 0);
+        admit()
+      ) else admit()
+    else admit()
+
+
+
 let lemma6 (d1 d2:date) (n:int) : Lemma
   (requires is_valid_date d1 /\ is_valid_date d2 /\ compare_dates d1 d2 < 0)
   (ensures (
