@@ -41,12 +41,11 @@ let format_period (fmt : Format.formatter) (p : period) : unit =
   Format.fprintf fmt "[%d years, %d months, %d days]" p.years p.months p.days
 
 let period_of_string str =
-  let re = Str.regexp {|\[\([0-9]+\) years, \([0-9]+\) months, \([0-9]+\) days\]|} in
-  assert (Str.string_match re str 0);
-  let years = int_of_string @@ Str.matched_group 1 str in
-  let months = int_of_string @@ Str.matched_group 2 str in
-  let days = int_of_string @@ Str.matched_group 3 str in
-  make_period ~years ~months ~days
+  try
+    Scanf.sscanf str
+      "[%d years, %d months, %d days]"
+      (fun years months days -> make_period ~years ~months ~days)
+  with Scanf.Scan_failure _ -> invalid_arg "period_of_string"
 
 let add_periods (d1 : period) (d2 : period) : period =
   {
@@ -234,15 +233,10 @@ let format_date (fmt : Format.formatter) (d : date) : unit =
   Format.fprintf fmt "%04d-%02d-%02d" d.year d.month d.day
 
 let date_of_string str =
-  let re =
-    Str.regexp {|\([0-9][0-9][0-9][0-9]\)-\([0-9][0-9]\)-\([0-9][0-9]\)|}
-  in
-  assert (Str.string_match re str 0);
-  let year = int_of_string @@ Str.matched_group 1 str in
-  let month = int_of_string @@ Str.matched_group 2 str in
-  let day = int_of_string @@ Str.matched_group 3 str in
-  make_date ~year ~month ~day
-
+  try
+    Scanf.sscanf str "%04d-%02d-%02d"
+      (fun year month day -> make_date ~year ~month ~day)
+  with Scanf.Scan_failure _ -> invalid_arg "date_of_string"
 
 let first_day_of_month (d : date) : date =
   assert(is_valid_date d);
