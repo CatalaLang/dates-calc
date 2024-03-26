@@ -1,4 +1,3 @@
 (library
- (libraries str)
  (public_name dates_calc)
 )
