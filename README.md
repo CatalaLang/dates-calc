@@ -6,7 +6,7 @@ This library handles dates (`YYYY-MM-DD`) and periods (in days, months and years
 
 This library is a work in progress. You can find the library's description in `lib/dates.mli`. There is also a Python implementation (which corresponds to a port of the OCaml implementation).
 
-We have a paper under submission that will detail the full semantics of this library.
+The full semantics of the library has been formalized and is available in the related ESOP 2024 paper [Formalizing Date Arithmetic and Statically Detecting Ambiguities for the Law](Formalizing Date Arithmetic and Statically Detecting Ambiguities for the Law).
 
 ## Installation
 
