@@ -264,7 +264,7 @@ let rec sub_dates (d1 : date) (d2 : date) : period =
       neg_period (sub_dates d2 d1)
     else
       (* we know cmp != 0 so cmp > 0*)
-      (* We warp d1 to the first day of the next month. *)
+      (* We warp d2 to the first day of the next month. *)
       let new_d2_year, new_d2_month =
         add_months_to_first_of_month_date ~year:d2.year ~month:d2.month
           ~months:1
