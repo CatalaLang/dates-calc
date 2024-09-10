@@ -35,7 +35,15 @@ typedef enum dc_date_rounding {
 
 dc_success dc_make_date(dc_date *ret, const long int y, const unsigned long int m, const unsigned long int d);
 
+dc_success dc_add_dates (dc_date *ret, const dc_date_rounding rnd, const dc_date *d, const dc_period *p);
+
+void dc_sub_dates (dc_period *ret, const dc_date *d1, const dc_date *d2);
+
 int dc_compare_dates (const dc_date *d1, const dc_date *d2);
+
+long int dc_date_year(const dc_date *d);
+unsigned long int dc_date_month(const dc_date *d);
+unsigned long int dc_date_day(const dc_date *d);
 
 void dc_print_date (const dc_date *d);
 
@@ -57,5 +65,9 @@ void dc_print_period (const dc_period *p);
 void dc_period_of_string (dc_period *ret, const char* s);
 
 dc_success dc_period_to_days (long int *ret, const dc_period *p);
+
+long int dc_period_years(const dc_period *d);
+long int dc_period_months(const dc_period *d);
+long int dc_period_days(const dc_period *d);
 
 #endif /* __DATES_CALC_H */

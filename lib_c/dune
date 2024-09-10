@@ -1,7 +1,7 @@
 (rule
  (deps dates_calc.c)
  (target dates_calc.o)
- (action (run cc --std=c89 -Wall -pedantic -c %{deps} -o %{target})))
+ (action (run %{cc} --std=c89 -Wall -Werror -pedantic -c %{deps} -o %{target})))
 
 (install
  (section lib)

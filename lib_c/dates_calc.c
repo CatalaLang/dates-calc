@@ -228,7 +228,7 @@ void add_dates_days (dc_date *ret, const dc_date *d, const long int days) {
   }
 }
 
-dc_success add_dates (dc_date *ret, const dc_date_rounding rnd, const dc_date *d, const dc_period *p) {
+dc_success dc_add_dates (dc_date *ret, const dc_date_rounding rnd, const dc_date *d, const dc_period *p) {
   dc_success success;
   ret->year = d->year + p->years;
   ret->month = d->month;
@@ -313,3 +313,28 @@ void dc_sub_dates (dc_period *ret, const dc_date *d1, const dc_date *d2) {
     ret->days += dc_days_in_month(d2) - d2->day + 1;
   }
 }
+
+long int dc_date_year(const dc_date *d) {
+  return d->year;
+}
+
+unsigned long int dc_date_month(const dc_date *d) {
+  return d->month;
+}
+
+unsigned long int dc_date_day(const dc_date *d) {
+  return d->day;
+}
+
+long int dc_period_years(const dc_period *p) {
+  return p->years;
+}
+
+long int dc_period_months(const dc_period *p) {
+  return p->months;
+}
+
+long int dc_period_days(const dc_period *p) {
+  return p->days;
+}
+
