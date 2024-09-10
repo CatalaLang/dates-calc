@@ -17,8 +17,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "dates.h"
-
 #define BOOL int
 #define FALSE 0
 #define TRUE 1
@@ -35,17 +33,28 @@
      any other argument of the same type is read.
 */
 
-struct dc_date {
+typedef enum dc_success {
+  dc_error, dc_ok
+} dc_success;
+
+typedef enum dc_date_rounding {
+  dc_date_round_up,
+  dc_date_round_down,
+  dc_date_round_abort
+} dc_date_rounding;
+
+
+typedef struct dc_date {
   long int year;
   unsigned long int month;
   unsigned long int day;
-};
+} dc_date;
 
-struct dc_period {
+typedef struct dc_period {
   long int years;
   long int months;
   long int days;
-};
+} dc_period;
 
 void dc_make_period(dc_period *ret, const long int y, const long int m, const long int d) {
   ret->years = y;

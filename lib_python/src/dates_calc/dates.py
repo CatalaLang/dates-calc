@@ -337,7 +337,7 @@ class Period:
 
     @classmethod
     def from_string(self, s : str) -> Period:
-        rege = re.compile("\[([0-9]+) years, ([0-9]+) months, ([0-9]+) days\]")
+        rege = re.compile("\\[([0-9]+) years, ([0-9]+) months, ([0-9]+) days\\]")
         match = rege.fullmatch(s)
         d = int(match[3])
         m = int(match[2])

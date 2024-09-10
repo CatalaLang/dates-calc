@@ -21,9 +21,11 @@ typedef enum dc_success {
   dc_error, dc_ok
 } dc_success;
 
-typedef struct dc_date dc_date;
 
-typedef struct dc_period dc_period;
+/* It is expected for [dc_date] and [dc_period] to be stack-allocated by the caller, so although we don't expose their contents, we provide [_opaque_data] as a hint about their sizes to the compiler. */
+typedef struct dc_date { long int _opaque_data[3]; } dc_date;
+
+typedef struct dc_period { long int _opaque_data[3]; } dc_period;
 
 typedef enum dc_date_rounding {
   dc_date_round_up,
@@ -55,4 +57,5 @@ void dc_print_period (const dc_period *p);
 void dc_period_of_string (dc_period *ret, const char* s);
 
 dc_success dc_period_to_days (long int *ret, const dc_period *p);
-#endif
+
+#endif /* __DATES_CALC_H */

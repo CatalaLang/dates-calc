@@ -2,3 +2,13 @@
  (names unit prop)
  (deps exact_computations.csv ambiguous_computations.csv first_last_day_of_month.csv)
  (libraries dates_calc alcotest qcheck))
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree ../lib_python)
+  unit.py __init__.py
+  ambiguous_computations.csv
+  exact_computations.csv
+  first_last_day_of_month.csv)
+ (action (chdir .. (run python3 -m unittest test.unit))))
