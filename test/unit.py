@@ -1,7 +1,7 @@
 # Run from root directory of dates-calc with `python3 -m unittest test.unit`
 import unittest
 import csv
-from lib.dates import Date, Period, AbortOnRound, RoundUp, RoundDown, addup, adddown, AmbiguousComputation
+from lib_python.src.dates_calc import Date, Period, AbortOnRound, RoundUp, RoundDown, addup, adddown, AmbiguousComputation
 
 class TestDates(unittest.TestCase):
     def read_csv(self, filename, drop_header=True):
