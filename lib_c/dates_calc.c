@@ -66,8 +66,14 @@ void dc_print_period (const dc_period *p) {
   printf("[%ld years, %ld months, %ld days]", p->years, p->months, p->days);
 }
 
-void dc_period_of_string (dc_period *ret, const char* s) {
-  sscanf("[%ld years, %ld months, %ld days]", s, &ret->years, &ret->months, &ret->days);
+dc_success dc_period_of_string (dc_period *ret, const char* s) {
+  if
+    (sscanf(s, "[%ld years, %ld months, %ld days]",
+            &ret->years, &ret->months, &ret->days)
+     == 3)
+    return dc_ok;
+  else
+    return dc_error;
 }
 
 void dc_add_periods (dc_period *ret, const dc_period *p1, const dc_period *p2) {
@@ -131,9 +137,12 @@ void dc_copy_date(dc_date *ret, const dc_date *d) {
 
 /* Precondition: [1 <= d->month <= 12]. The returned day is always [1] */
 void dc_add_months(dc_date *ret, const dc_date *d, const long int months) {
-  long int month = d->month + months;
+  long int month = d->month - 1 + months;
+  /* The month variable is shifted -1 to be in range [0, 11] for modulo
+     calculations */
+  /*  assert (1 <= d->month && d->month <= 12); */
   ret->day = 1;
-  ret->month = month >= 0 ? month % 12 : month % 12 + 12;
+  ret->month = (month >= 0 ? month % 12 : month % 12 + 12) + 1;
   ret->year = d->year + (month >= 0 ? month / 12 : month / 12 - 1);
 }
 
@@ -169,7 +178,7 @@ void dc_next_valid_date (dc_date *ret, const dc_date *d) {
 
 dc_success dc_round_date (dc_date *ret, const dc_date_rounding rnd, const dc_date *d) {
   if (dc_is_valid_date(d)) {
-    *ret = *d;
+    dc_copy_date(ret, d);
     return dc_ok;
   } else switch (rnd) {
     case dc_date_round_down:
@@ -205,7 +214,7 @@ void add_dates_days (dc_date *ret, const dc_date *d, const long int days) {
     /* What remains to be substracted (as [days] is negative) has to be
        diminished by the number of days of the date in the current month. */
     add_dates_days(ret, &d1, days + d->day);
-  } else if (days_in_d_month <= day_num) {
+  } else if (days_in_d_month < day_num) {
     /* Here there is an overflow : you have added too many days and the current
        month cannot handle them any more. The strategy here is to fill the
        current month, and let the next month handle the situation via a
@@ -263,8 +272,13 @@ void dc_print_date (const dc_date *d) {
   printf("%04ld-%02lu-%02lu", d->year, d->month, d->day);
 }
 
-void dc_date_of_string (dc_date *ret, const char* s) {
-  sscanf("%04ld-%02lu-%02lu", s, &ret->year, &ret->month, &ret->day);
+dc_success dc_date_of_string (dc_date *ret, const char* s) {
+  if (sscanf(s, "%4ld-%2lu-%2lu",
+             &ret->year, &ret->month, &ret->day)
+      == 3)
+    return dc_ok;
+  else
+    return dc_error;
 }
 
 void dc_first_day_of_month (dc_date *ret, const dc_date *d) {

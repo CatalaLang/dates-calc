@@ -22,7 +22,9 @@ typedef enum dc_success {
 } dc_success;
 
 
-/* It is expected for [dc_date] and [dc_period] to be stack-allocated by the caller, so although we don't expose their contents, we provide [_opaque_data] as a hint about their sizes to the compiler. */
+/* It is expected for [dc_date] and [dc_period] to be stack-allocated by the
+   caller, so although we don't expose their contents, we provide [_opaque_data]
+   as a hint about their sizes to the compiler. */
 typedef struct dc_date { long int _opaque_data[3]; } dc_date;
 
 typedef struct dc_period { long int _opaque_data[3]; } dc_period;
@@ -47,7 +49,7 @@ unsigned long int dc_date_day(const dc_date *d);
 
 void dc_print_date (const dc_date *d);
 
-void dc_date_of_string (dc_date *ret, const char* s);
+dc_success dc_date_of_string (dc_date *ret, const char* s);
 
 void dc_first_day_of_month (dc_date *ret, const dc_date *d);
 
@@ -62,7 +64,7 @@ void dc_sub_periods (dc_period *ret, const dc_period *p1, const dc_period *p2);
 void dc_mul_periods (dc_period *ret, const dc_period *p, const long int m);
 
 void dc_print_period (const dc_period *p);
-void dc_period_of_string (dc_period *ret, const char* s);
+dc_success dc_period_of_string (dc_period *ret, const char* s);
 
 dc_success dc_period_to_days (long int *ret, const dc_period *p);
 
