@@ -12,3 +12,17 @@
   exact_computations.csv
   first_last_day_of_month.csv)
  (action (chdir .. (run python3 -m unittest test.unit))))
+
+(rule
+ (target unit.c.exe)
+ (deps
+  ../lib_c/dates_calc.o
+  ../lib_c/dates_calc.h
+  unit.c)
+ (action
+  (run %{cc} -Wall -I ../lib_c unit.c ../lib_c/dates_calc.o -o unit.c.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (run ./unit.c.exe)))
