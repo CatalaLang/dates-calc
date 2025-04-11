@@ -35,7 +35,7 @@ public class Period {
 
     public final int toDays(){
         if(this.years != 0 || this.months != 0){
-            throw new RuntimeException("Ambiguous computation");
+            throw new AmbiguousComputationException("Cannot convert a Period with non-zero years and/or months to days");
         }
         return this.days;
     }
