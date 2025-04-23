@@ -2,11 +2,16 @@
 
 (name "dates_calc")
 (authors
-        "Aymeric Fromherz"
-        "Denis Merigoux"
-        "Raphaël Monat")
+  "Vincent Botbol"
+  "Aymeric Fromherz"
+  "Louis Gesbert"
+  "Denis Merigoux"
+  "Raphaël Monat"
+  "Romain Primet"
+)
 (maintainers
-        "Raphaël Monat <raphael.monat+NOSPAM@inria.fr>")
+  "Raphaël Monat"
+  "Louis Gesbert")
 (source (github CatalaLang/dates-calc))
 (license "Apache-2.0")
 
