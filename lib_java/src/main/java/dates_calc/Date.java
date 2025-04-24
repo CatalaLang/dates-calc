@@ -1,4 +1,4 @@
-package catala.dates_calc;
+package dates_calc;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
