@@ -26,3 +26,8 @@
  (alias runtest)
  (action
   (run ./unit.c.exe)))
+
+(rule
+ (alias runtest)
+ (deps (source_tree ../lib_java))
+ (action (chdir ../lib_java (run mvn test))))
