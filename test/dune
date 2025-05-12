@@ -29,5 +29,5 @@
 
 (rule
  (alias runtest)
- (deps (source_tree ../lib_java))
- (action (chdir ../lib_java (run mvn test))))
+ (deps (file ../lib_java/test-main.jar))
+ (action (run java -jar %{deps})))
