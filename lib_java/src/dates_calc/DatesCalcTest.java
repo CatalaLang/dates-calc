@@ -8,12 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 public class DatesCalcTest {
 
     // Helper to read CSV data, using relative path from lib_java
@@ -38,25 +32,40 @@ public class DatesCalcTest {
 
     // --- Data Providers ---
     // Return Stream<Arguments> where each Arguments contains the individual elements of a row
-    static Stream<Arguments> exactComputationsProvider() throws IOException {
-        // Map each String[] row to Arguments.of(row[0], row[1], row[2])
-        return readCsv("exact_computations.csv").stream().map(row -> Arguments.of(row[0], row[1], row[2]));
+    static Stream<String[]> exactComputationsProvider() throws IOException {
+        // Arrays of length 3
+        return readCsv("exact_computations.csv").stream();
     }
 
-    static Stream<Arguments> ambiguousComputationsProvider() throws IOException {
-        // Map each String[] row to Arguments.of(row[0], row[1], row[2], row[3])
-        return readCsv("ambiguous_computations.csv").stream().map(row -> Arguments.of(row[0], row[1], row[2], row[3]));
+    static Stream<String[]> ambiguousComputationsProvider() throws IOException {
+        // Arrays of length 4
+        return readCsv("ambiguous_computations.csv").stream();
     }
 
-    static Stream<Arguments> firstLastDayOfMonthProvider() throws IOException {
-        // Map each String[] row to Arguments.of(row[0], row[1], row[2])
-        return readCsv("first_last_day_of_month.csv").stream().map(row -> Arguments.of(row[0], row[1], row[2]));
+    static Stream<String[]> firstLastDayOfMonthProvider() throws IOException {
+        // Arrays of length 3
+        return readCsv("first_last_day_of_month.csv").stream();
+    }
+
+    static <T> void assertEquals(T expected, T received, String message) {
+        if (!(expected.equals(received))) {
+            throw new RuntimeException(message);
+        }
+    }
+
+    static <T extends Exception> void assertThrows(Class<T> exn_clazz, Runnable thunk, String message) {
+        try {
+            thunk.run();
+        } catch (Exception e) {
+            if (exn_clazz.isInstance(e)) {
+                return;
+            }
+        }
+        throw new RuntimeException(message);
     }
 
     // --- Test Methods ---
-    @ParameterizedTest(name = "[{index}] {0} + {1} = {2}")
-    @MethodSource("exactComputationsProvider")
-    void testAddDatesExact(String dateStr, String periodStr, String expectedDateStr) {
+    static void testAddDatesExact(String dateStr, String periodStr, String expectedDateStr) {
         Date d = Date.fromString(dateStr);
         Period p = Period.fromString(periodStr);
         Date expected = Date.fromString(expectedDateStr);
@@ -66,9 +75,7 @@ public class DatesCalcTest {
         assertEquals(expected, d.add(p, Date.Rounding.ROUND_DOWN), "Exact addition (RoundDown) failed for " + dateStr + " + " + periodStr);
     }
 
-    @ParameterizedTest(name = "[{index}] {0} + {1} -> UP={2}, DOWN={3}")
-    @MethodSource("ambiguousComputationsProvider")
-    void testAddDatesAmbiguous(String dateStr, String periodStr, String expectedUpStr, String expectedDownStr) {
+    static void testAddDatesAmbiguous(String dateStr, String periodStr, String expectedUpStr, String expectedDownStr) {
         // No need to access via index anymore
         Date d = Date.fromString(dateStr);
         Period p = Period.fromString(periodStr);
@@ -80,14 +87,22 @@ public class DatesCalcTest {
         assertEquals(expectedDown, d.add(p, Date.Rounding.ROUND_DOWN), "Ambiguous addition (RoundDown) failed for " + dateStr + " + " + periodStr);
     }
 
-    @ParameterizedTest(name = "[{index}] {0} -> First={1}, Last={2}")
-    @MethodSource("firstLastDayOfMonthProvider")
-    void testFirstLastDayOfMonth(String dateStr, String expectedFirstStr, String expectedLastStr) {
+    static void testFirstLastDayOfMonth(String dateStr, String expectedFirstStr, String expectedLastStr) {
         Date d = Date.fromString(dateStr);
         Date expectedFirst = Date.fromString(expectedFirstStr);
         Date expectedLast = Date.fromString(expectedLastStr);
 
         assertEquals(expectedFirst, d.firstDayOfMonth(), "First day of month calculation failed for " + dateStr);
         assertEquals(expectedLast, d.lastDayOfMonth(), "Last day of month calculation failed for " + dateStr);
+    }
+
+    public static void main(String[] args) throws IOException {
+        System.out.println("Running Java unit tests...");
+        exactComputationsProvider().forEach(arr -> testAddDatesExact(arr[0], arr[1], arr[2]));
+        System.out.println("- Addition tests: OK");
+        ambiguousComputationsProvider().forEach(arr -> testAddDatesAmbiguous(arr[0], arr[1], arr[2], arr[3]));
+        System.out.println("- Ambiguous addition tests: OK");
+        firstLastDayOfMonthProvider().forEach(arr -> testFirstLastDayOfMonth(arr[0], arr[1], arr[2]));
+        System.out.println("- First/Last day of month tests: OK");
     }
 }
