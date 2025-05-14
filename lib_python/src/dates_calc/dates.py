@@ -40,13 +40,12 @@ def is_leap_year(year : int) -> bool:
     return (year % 400 == 0) or (year % 4 == 0 and year % 100 != 0)
 
 def days_in_month(*, month : int, is_leap_year : bool) -> int:
-    match month:
-        case 1 | 3 | 5 | 7 | 8 | 10 | 12: return 31
-        case 4 | 6 | 9 | 11: return 30
-        case 2:
-            return 29 if is_leap_year else 28
-        case _:
-            raise InvalidDate
+    if month in [1, 3, 5, 7, 8, 10, 12]: return 31
+    elif month in [4, 6, 9, 11]: return 30
+    elif month == 2:
+        return 29 if is_leap_year else 28
+    else:
+        raise InvalidDate
 
 def add_months_to_first_of_month_date(*, year : int, month : int, months : int) -> tuple[int, int]:
     """
@@ -139,10 +138,9 @@ class Date:
     def round(self, round : DateRounding) -> Date:
         if self.is_valid: return self
         else:
-            match round:
-                case DateRounding.AbortOnRound: raise AmbiguousComputation
-                case DateRounding.RoundDown: return self.prev_valid_date()
-                case DateRounding.RoundUp: return self.next_valid_date()
+            if round == DateRounding.AbortOnRound: raise AmbiguousComputation
+            elif round == DateRounding.RoundDown: return self.prev_valid_date()
+            elif round == DateRounding.RoundUp: return self.next_valid_date()
 
     # This function is only ever called from `add_dates` below.
     # Hence, any call to `add_dates_years` will be followed by a call
