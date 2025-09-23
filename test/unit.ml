@@ -1,4 +1,4 @@
-open Dates_calc.Dates
+open Dates_calc
 
 let date = Alcotest.testable format_date (fun x y -> compare_dates x y = 0)
 

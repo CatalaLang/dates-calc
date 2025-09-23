@@ -1,4 +1,4 @@
-open Dates_calc.Dates
+open Dates_calc
 
 let rec date_generator gen =
   let open QCheck.Gen in
