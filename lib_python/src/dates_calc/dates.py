@@ -23,6 +23,7 @@ from functools import total_ordering, partial
 from enum import Enum
 from copy import deepcopy
 import re
+from typing import NewType, List, Generic, Callable, Tuple, TypeVar, Iterable, Union, Any
 
 DateRounding = Enum("DateRounding", ["RoundUp", "RoundDown", "AbortOnRound"])
 # A dynamic way to make AbortOnRound & co top-level globals:
@@ -154,7 +155,7 @@ class Date:
         new_date.year = self.year + years
         return new_date
 
-    def add_dates_months(self, months : int, round : DateROunding) -> Date:
+    def add_dates_months(self, months : int, round : DateRounding) -> Date:
         new_year, new_month = add_months_to_first_of_month_date(year = self.year,
                                                                 month = self.month,
                                                                 months = months)
@@ -211,7 +212,7 @@ class Date:
                                             is_leap_year = is_leap_year(new_year))
                         ).add_dates_days(days + self.day)
 
-    def __add__(self, p : Period, round : DateRounding = AbortOnRound) -> Date:
+    def __add__(self, p : Period, round : DateRounding = DateRounding.AbortOnRound) -> Date:
         d = self.add_dates_years(p.years, round)
         # NB: after add_dates_years, the date may not be correct.
         # Rounding will be performed later, by add_dates_month
@@ -279,22 +280,25 @@ class Date:
     def from_string(self, s : str) -> Date:
         rege = re.compile("([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])")
         match = rege.fullmatch(s)
-        d = int(match[3])
-        m = int(match[2])
-        y = int(match[1])
-        return Date(year = y, month = m, day = d)
+        if match is None:
+            raise InvalidDate()
+        else:
+            d = int(match[3])
+            m = int(match[2])
+            y = int(match[1])
+            return Date(year = y, month = m, day = d)
 
 # custom infix operators for Date addition.
 # You can thus do `l +addup+ p`!
 @Infix
 def addup(l : Date, p : Period) -> Date:
     if not (isinstance(l, Date) and isinstance(p, Period)): raise TypeError("+up+ requires a date and a period")
-    return l.__add__(p, round = RoundUp)
+    return l.__add__(p, DateRounding.RoundUp)
 
 @Infix
 def adddown(l : Date, p : Period) -> Date:
     if not (isinstance(l, Date) and isinstance(p, Period)): raise TypeError("+down+ requires a date and a period")
-    return l.__add__(p, round = RoundDown)
+    return l.__add__(p, DateRounding.RoundDown)
 
 
 class Period:
@@ -337,10 +341,13 @@ class Period:
     def from_string(self, s : str) -> Period:
         rege = re.compile("\\[([0-9]+) years, ([0-9]+) months, ([0-9]+) days\\]")
         match = rege.fullmatch(s)
-        d = int(match[3])
-        m = int(match[2])
-        y = int(match[1])
-        return Period(years = y, months = m, days = d)
+        if match is None:
+            raise InvalidDate()
+        else:
+            d = int(match[3])
+            m = int(match[2])
+            y = int(match[1])
+            return Period(years = y, months = m, days = d)
 
     def __neg__(self) -> Period:
         return Period(years = - self.years,
