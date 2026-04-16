@@ -16,7 +16,6 @@
 
 [@@@warning "-27"]
 
-
 type date = { year : int; month : int; day : int }
 (** A valid date in the standard Gregorian calendar. *)
 
@@ -42,9 +41,8 @@ let format_period (fmt : Format.formatter) (p : period) : unit =
 
 let period_of_string str =
   try
-    Scanf.sscanf str
-      "[%d years, %d months, %d days]"
-      (fun years months days -> make_period ~years ~months ~days)
+    Scanf.sscanf str "[%d years, %d months, %d days]" (fun years months days ->
+        make_period ~years ~months ~days)
   with Scanf.Scan_failure _ -> invalid_arg "period_of_string"
 
 let add_periods (d1 : period) (d2 : period) : period =
@@ -144,12 +142,11 @@ let round_date ~(round : date_rounding) (new_date : date) =
     | RoundDown -> prev_valid_date new_date
     | RoundUp -> next_valid_date new_date
 
-(** This function is only ever called from `add_dates` below.
-    Hence, any call to `add_dates_years` will be followed by a call
-    to `add_dates_month`. We therefore perform a single rounding
-    in `add_dates_month`, to avoid introducing additional imprecision here,
-    and to ensure that adding n years + m months is always equivalent to
-    adding (12n + m) months *)
+(** This function is only ever called from `add_dates` below. Hence, any call to
+    `add_dates_years` will be followed by a call to `add_dates_month`. We
+    therefore perform a single rounding in `add_dates_month`, to avoid
+    introducing additional imprecision here, and to ensure that adding n years +
+    m months is always equivalent to adding (12n + m) months *)
 let add_dates_years ~(round : date_rounding) (d : date) (years : int) : date =
   { d with year = d.year + years }
 
@@ -159,7 +156,6 @@ let add_dates_month ~(round : date_rounding) (d : date) (months : int) : date =
   in
   let new_date = { d with year = new_year; month = new_month } in
   round_date ~round new_date
-
 
 let rec add_dates_days (d : date) (days : int) =
   (* Hello, dear reader! Buckle up because it will be a hard ride. The first
@@ -216,8 +212,8 @@ let rec add_dates_days (d : date) (days : int) =
 let add_dates ?(round : date_rounding = AbortOnRound) (d : date) (p : period) :
     date =
   let d = add_dates_years ~round d p.years in
-  (* NB: after add_dates_years, the date may not be correct.
-     Rounding will be performed later, by add_dates_month *)
+  (* NB: after add_dates_years, the date may not be correct. Rounding will be
+     performed later, by add_dates_month *)
   let d = add_dates_month ~round d p.months in
   let d = add_dates_days d p.days in
   d
@@ -234,17 +230,19 @@ let format_date (fmt : Format.formatter) (d : date) : unit =
 
 let date_of_string str =
   try
-    Scanf.sscanf str "%04d-%02d-%02d"
-      (fun year month day -> make_date ~year ~month ~day)
+    Scanf.sscanf str "%04d-%02d-%02d" (fun year month day ->
+        make_date ~year ~month ~day)
   with Scanf.Scan_failure _ -> invalid_arg "date_of_string"
 
 let first_day_of_month (d : date) : date =
-  assert(is_valid_date d);
+  assert (is_valid_date d);
   make_date ~year:d.year ~month:d.month ~day:1
 
 let last_day_of_month (d : date) : date =
-  assert(is_valid_date d);
-  let days_month = days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year) in
+  assert (is_valid_date d);
+  let days_month =
+    days_in_month ~month:d.month ~is_leap_year:(is_leap_year d.year)
+  in
   make_date ~year:d.year ~month:d.month ~day:days_month
 
 let neg_period (p : period) : period =
@@ -284,5 +282,4 @@ let rec sub_dates (d1 : date) (d2 : date) : period =
         (sub_dates d1 new_d2)
 
 let date_to_ymd (d : date) : int * int * int = d.year, d.month, d.day
-
 let period_to_ymds (p : period) : int * int * int = p.years, p.months, p.days

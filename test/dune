@@ -1,24 +1,28 @@
 (tests
  (names unit prop)
- (deps exact_computations.csv ambiguous_computations.csv first_last_day_of_month.csv)
+ (deps
+  exact_computations.csv
+  ambiguous_computations.csv
+  first_last_day_of_month.csv)
  (libraries dates_calc alcotest qcheck))
 
 (rule
  (alias runtest)
  (deps
   (source_tree ../lib_python)
-  unit.py __init__.py
+  unit.py
+  __init__.py
   ambiguous_computations.csv
   exact_computations.csv
   first_last_day_of_month.csv)
- (action (chdir .. (run python3 -m unittest test.unit))))
+ (action
+  (chdir
+   ..
+   (run python3 -m unittest test.unit))))
 
 (rule
  (target unit.c.exe)
- (deps
-  ../lib_c/dates_calc.o
-  ../lib_c/dates_calc.h
-  unit.c)
+ (deps ../lib_c/dates_calc.o ../lib_c/dates_calc.h unit.c)
  (action
   (run %{cc} -Wall -I ../lib_c unit.c ../lib_c/dates_calc.o -o unit.c.exe)))
 
@@ -29,5 +33,7 @@
 
 (rule
  (alias runtest)
- (deps (file ../lib_java/test-main.jar))
- (action (run java -jar %{deps})))
+ (deps
+  (file ../lib_java/test-main.jar))
+ (action
+  (run java -jar %{deps})))

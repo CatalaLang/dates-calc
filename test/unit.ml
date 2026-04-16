@@ -39,53 +39,50 @@ let check_extended_eqs eqs =
 
 let read_csv ?(drop_header = true) filename =
   let ic = open_in filename in
-  if drop_header then ignore(input_line ic);
+  if drop_header then ignore (input_line ic);
   let rec loop acc =
     match input_line ic with
     | exception End_of_file -> List.rev acc
-    | line ->
-      loop ((String.split_on_char ';' line) :: acc)
+    | line -> loop (String.split_on_char ';' line :: acc)
   in
   loop []
 
 let test_add_dates_exact () =
-  let cases = read_csv "exact_computations.csv" in 
-  let eqs = List.map
+  let cases = read_csv "exact_computations.csv" in
+  let eqs =
+    List.map
       (function
-        | [d1; p; d2] -> (d1, p, d2)
+        | [d1; p; d2] -> d1, p, d2
         | l -> failwith (Format.asprintf "%d" (List.length l)))
-      cases in
+      cases
+  in
   check_eqs eqs
 
 let test_add_dates_ambiguous () =
   let cases = read_csv "ambiguous_computations.csv" in
-  let eqs = List.map
-      (function
-        | [d1; p; du; d_o] -> d1, p, du, d_o
-        | _ -> assert false)
-      cases in
+  let eqs =
+    List.map
+      (function [d1; p; du; d_o] -> d1, p, du, d_o | _ -> assert false)
+      cases
+  in
   check_extended_eqs eqs
 
 let test_first_last_day_of_month () =
   let cases = read_csv "first_last_day_of_month.csv" in
-  let eqs = List.map
-      (function
-        | [d; df; dl] -> d, df, dl
-        | _ -> assert false)
-      cases in
+  let eqs =
+    List.map (function [d; df; dl] -> d, df, dl | _ -> assert false) cases
+  in
   List.iter
     (fun (d_init, d_first, d_last) ->
-       Alcotest.(check date)
-         (Format.asprintf "first_day_of_month %s = %s" d_init d_first)
-         (date_of_string d_first)
-         (first_day_of_month @@ date_of_string d_init);
-       Alcotest.(check date)
-         (Format.asprintf "last_day_of_month %s = %s" d_init d_last)
-         (date_of_string d_last)
-         (last_day_of_month @@ date_of_string d_init)
-    )
+      Alcotest.(check date)
+        (Format.asprintf "first_day_of_month %s = %s" d_init d_first)
+        (date_of_string d_first)
+        (first_day_of_month @@ date_of_string d_init);
+      Alcotest.(check date)
+        (Format.asprintf "last_day_of_month %s = %s" d_init d_last)
+        (date_of_string d_last)
+        (last_day_of_month @@ date_of_string d_init))
     eqs
-
 
 (* Run it *)
 let () =
@@ -98,5 +95,5 @@ let () =
           test_case "ambig" `Quick test_add_dates_ambiguous;
         ] );
       ( "first_last_day_of_month",
-        [ test_case "all" `Quick test_first_last_day_of_month ] )
+        [test_case "all" `Quick test_first_last_day_of_month] );
     ]

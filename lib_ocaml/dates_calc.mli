@@ -48,10 +48,8 @@ val format_date : Format.formatter -> date -> unit
 (** Respects ISO8601 format. *)
 
 val date_of_string : string -> date
-
 val first_day_of_month : date -> date
 val last_day_of_month : date -> date
-
 val is_leap_year : int -> bool
 
 (** {2 Functions on periods}*)
@@ -61,7 +59,6 @@ val neg_period : period -> period
 val add_periods : period -> period -> period
 val sub_periods : period -> period -> period
 val mul_period : period -> int -> period
-
 val format_period : Format.formatter -> period -> unit
 val period_of_string : string -> period
 
